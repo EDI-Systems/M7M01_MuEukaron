@@ -1371,7 +1371,7 @@ rme_ptr_t __RME_SMP_Low_Level_Init(void)
      * check to see if they are there. */
     RME_ASSERT(CPU_Local->Cur_Thd!=0);
     RME_ASSERT(CPU_Local->Tick_Sig!=0);
-    RME_ASSERT(CPU_Local->Int_Sig!=0);
+    RME_ASSERT(CPU_Local->Vect_Sig!=0);
 
     /* Change page tables */
     __RME_Pgtbl_Set(RME_CAP_GETOBJ((CPU_Local->Cur_Thd)->Sched.Proc->Pgtbl,rme_ptr_t));
@@ -1539,7 +1539,7 @@ rme_ptr_t __RME_Boot(void)
     for(Count=0;Count<RME_X64_Num_CPU;Count++)
     {
     	CPU_Local=__RME_X64_CPU_Local_Get_By_CPUID(Count);
-    	CPU_Local->Int_Sig=(struct RME_Sig_Struct*)Cur_Addr;
+    	CPU_Local->Vect_Sig=(struct RME_Sig_Struct*)Cur_Addr;
         RME_ASSERT(_RME_Sig_Boot_Crt(RME_X64_CPT, RME_BOOT_TBL_INT, Count, Cur_Addr)==0);
         Cur_Addr+=RME_KOTBL_ROUND(RME_SIG_SIZE);
     }
@@ -1807,16 +1807,17 @@ void write_string( int colour, const char *string, rme_ptr_t pos)
 
 /* Begin Function:__RME_Kern_Func_Handler *************************************
 Description : Handle kernel function calls.
-Input       : struct RME_Reg_Struct* Reg - The current register set.
+Input       : struct RME_Cap_Captbl* Captbl - The current capability table.
+              struct RME_Reg_Struct* Reg - The current register set.
               rme_ptr_t Func_ID - The function ID.
               rme_ptr_t Sub_ID - The sub function ID.
               rme_ptr_t Param1 - The first parameter.
               rme_ptr_t Param2 - The second parameter.
 Output      : None.
-Return      : rme_ptr_t - The value that the function returned.
+Return      : rme_ret_t - The value that the function returned.
 ******************************************************************************/
-rme_ptr_t __RME_Kern_Func_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Func_ID,
-                                  rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2)
+rme_ret_t __RME_Kern_Func_Handler(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,
+                                  rme_ptr_t Func_ID, rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2)
 {
     /* Now always call the HALT */
     char String[16];
@@ -1943,7 +1944,7 @@ void __RME_Pgtbl_Set(rme_ptr_t Pgtbl)
 /* Begin Function:__RME_Pgtbl_Check *******************************************
 Description : Check if the page table parameters are feasible, according to the
               parameters. This is only used in page table creation.
-Input       : rme_ptr_t Start_Addr - The start mapping address.
+Input       : rme_ptr_t Base_Addr - The start mapping address.
               rme_ptr_t Top_Flag - The top-level flag,
               rme_ptr_t Size_Order - The size order of the page directory.
               rme_ptr_t Num_Order - The number order of the page directory.
@@ -1951,7 +1952,7 @@ Input       : rme_ptr_t Start_Addr - The start mapping address.
 Output      : None.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgtbl_Check(rme_ptr_t Start_Addr, rme_ptr_t Top_Flag,
+rme_ptr_t __RME_Pgtbl_Check(rme_ptr_t Base_Addr, rme_ptr_t Top_Flag,
                             rme_ptr_t Size_Order, rme_ptr_t Num_Order, rme_ptr_t Vaddr)
 {
     /* Is the table address aligned to 4kB? */
@@ -1994,7 +1995,7 @@ rme_ptr_t __RME_Pgtbl_Init(struct RME_Cap_Pgtbl* Pgtbl_Op)
         Ptr[Count]=0;
 
     /* Hopefully the compiler optimize this to rep movs */
-    if((Pgtbl_Op->Start_Addr&RME_PGTBL_TOP)!=0)
+    if((Pgtbl_Op->Base_Addr&RME_PGTBL_TOP)!=0)
     {
         for(;Count<512;Count++)
             Ptr[Count]=RME_X64_Kpgt.PML4[Count-256];
@@ -2057,7 +2058,7 @@ rme_ptr_t __RME_Pgtbl_Page_Map(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Paddr, 
         return RME_ERR_PGT_OPFAIL;
 
     /* Are we trying to map into the kernel space on the top level? */
-    if(((Pgtbl_Op->Start_Addr&RME_PGTBL_TOP)!=0)&&(Pos>=256))
+    if(((Pgtbl_Op->Base_Addr&RME_PGTBL_TOP)!=0)&&(Pos>=256))
         return RME_ERR_PGT_OPFAIL;
 
     /* Get the table */
@@ -2090,7 +2091,7 @@ rme_ptr_t __RME_Pgtbl_Page_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos)
     rme_ptr_t Temp;
 
     /* Are we trying to unmap the kernel space on the top level? */
-    if(((Pgtbl_Op->Start_Addr&RME_PGTBL_TOP)!=0)&&(Pos>=256))
+    if(((Pgtbl_Op->Base_Addr&RME_PGTBL_TOP)!=0)&&(Pos>=256))
         return RME_ERR_PGT_OPFAIL;
 
     /* Get the table */
@@ -2134,7 +2135,7 @@ rme_ptr_t __RME_Pgtbl_Pgdir_Map(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t Po
         return RME_ERR_PGT_OPFAIL;
 
     /* Are we trying to map into the kernel space on the top level? */
-    if(((Pgtbl_Parent->Start_Addr&RME_PGTBL_TOP)!=0)&&(Pos>=256))
+    if(((Pgtbl_Parent->Base_Addr&RME_PGTBL_TOP)!=0)&&(Pos>=256))
         return RME_ERR_PGT_OPFAIL;
 
     /* Get the table */
@@ -2170,7 +2171,7 @@ rme_ptr_t __RME_Pgtbl_Pgdir_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos)
     rme_ptr_t Temp;
 
     /* Are we trying to unmap the kernel space on the top level? */
-    if(((Pgtbl_Op->Start_Addr&RME_PGTBL_TOP)!=0)&&(Pos>=256))
+    if(((Pgtbl_Op->Base_Addr&RME_PGTBL_TOP)!=0)&&(Pos>=256))
         return RME_ERR_PGT_OPFAIL;
 
     /* Get the table */
@@ -2272,7 +2273,7 @@ rme_ptr_t __RME_Pgtbl_Walk(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Vaddr, rme_
     rme_ptr_t No_Execute;
 
     /* Check if this is the top-level page table */
-    if(((Pgtbl_Op->Start_Addr)&RME_PGTBL_TOP)==0)
+    if(((Pgtbl_Op->Base_Addr)&RME_PGTBL_TOP)==0)
         return RME_ERR_PGT_OPFAIL;
 
     /* Are we attempting a kernel or non-canonical lookup? If yes, stop immediately */

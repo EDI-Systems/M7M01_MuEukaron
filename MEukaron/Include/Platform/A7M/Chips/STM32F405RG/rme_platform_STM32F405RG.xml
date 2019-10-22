@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <Chip>
-    <Class>STM32F767IG</Class>
-    <Compatible>STM32F767IGK6,STM32F767IGT6</Compatible>
+    <Class>STM32F405RG</Class>
+    <Compatible>STM32F405RGT6,STM32F405RGT7</Compatible>
     <Vendor>STMicroelectronics</Vendor>
     <Platform>A7M</Platform>
     <Cores>1</Cores>
     <Regions>8</Regions>
     <Attribute>
-        <CPU_Type>Cortex-M7</CPU_Type>
-        <FPU_Type>Double</FPU_Type>
+        <CPU_Type>Cortex-M4</CPU_Type>
+        <FPU_Type>Single</FPU_Type>
         <Endianness>Little</Endianness>
     </Attribute>
     <Memory>
@@ -19,47 +19,53 @@
             <Attribute>RXBCS</Attribute>
         </M0>
         <M1>
-            <Base>0x20000000</Base>
-            <Size>0x00080000</Size>
+            <Base>0x10000000</Base>
+            <Size>0x00010000</Size>
             <Type>Data</Type>
-            <Attribute>RWXBCS</Attribute>
+            <Attribute>RWBCS</Attribute>
         </M1>
         <M2>
+            <Base>0x20000000</Base>
+            <Size>0x00020000</Size>
+            <Type>Data</Type>
+            <Attribute>RWXBCS</Attribute>
+        </M2>
+        <M3>
             <Base>0x40000000</Base>
             <Size>0x20000000</Size>
             <Type>Device</Type>
             <Attribute>RWS</Attribute>
-        </M2>
-        <M3>
+        </M3>
+        <M4>
             <Base>0xE0000000</Base>
             <Size>0x20000000</Size>
             <Type>Device</Type>
             <Attribute>RWS</Attribute>
-        </M3>
+        </M4>
     </Memory>
     <Option>
         <O0>
             <Name>PLLM</Name>
             <Type>Range</Type>
-            <Macro>RME_A7M_STM32F767IG_PLLM</Macro>
+            <Macro>RME_A7M_STM32F405RG_PLLM</Macro>
             <Range>2,63</Range>
         </O0>
         <O1>
             <Name>PLLN</Name>
             <Type>Range</Type>
-            <Macro>RME_A7M_STM32F767IG_PLLN</Macro>
+            <Macro>RME_A7M_STM32F405RG_PLLN</Macro>
             <Range>50,432</Range>
         </O1>
         <O2>
             <Name>PLLP</Name>
             <Type>Select</Type>
-            <Macro>RME_A7M_STM32F767IG_PLLP</Macro>
+            <Macro>RME_A7M_STM32F405RG_PLLP</Macro>
             <Range>2,4,6,8</Range>
         </O2>
         <O3>
             <Name>PLLQ</Name>
             <Type>Range</Type>
-            <Macro>RME_A7M_STM32F767IG_PLLQ</Macro>
+            <Macro>RME_A7M_STM32F405RG_PLLQ</Macro>
             <Range>2,15</Range>
         </O3>
     </Option>
@@ -261,11 +267,11 @@
             <Number>47</Number>
         </V47>
         <V48>
-            <Name>FMC</Name>
+            <Name>FSMC</Name>
             <Number>48</Number>
         </V48>
         <V49>
-            <Name>SDMMC1</Name>
+            <Name>SDIO</Name>
             <Number>49</Number>
         </V49>
 
@@ -295,7 +301,7 @@
         </V55>
         <V56>
             <Name>DMA2_Stream0</Name>
-            <Number>56</Number>
+            <Number>566</Number>
         </V56>
         <V57>
             <Name>DMA2_Stream1</Name>
@@ -315,11 +321,11 @@
             <Number>60</Number>
         </V60>
         <V61>
-            <Name>ETH</Name>
+            <Name>Reserved0</Name>
             <Number>61</Number>
         </V61>
         <V62>
-            <Name>ETH_WKUP</Name>
+            <Name>Reserved1</Name>
             <Number>62</Number>
         </V62>
         <V63>
@@ -350,7 +356,6 @@
             <Name>DMA2_Stream6</Name>
             <Number>69</Number>
         </V69>
-
         <V70>
             <Name>DMA2_Stream7</Name>
             <Number>70</Number>
@@ -384,11 +389,11 @@
             <Number>77</Number>
         </V77>
         <V78>
-            <Name>DCMI</Name>
+            <Name>Reserved2</Name>
             <Number>78</Number>
         </V78>
         <V79>
-            <Name>Reserved0</Name>
+            <Name>Reserved3</Name>
             <Number>79</Number>
         </V79>
 
@@ -400,119 +405,5 @@
             <Name>FPU</Name>
             <Number>81</Number>
         </V81>
-        <V82>
-            <Name>UART7</Name>
-            <Number>82</Number>
-        </V82>
-        <V83>
-            <Name>UART8</Name>
-            <Number>83</Number>
-        </V83>
-        <V84>
-            <Name>SPI4</Name>
-            <Number>84</Number>
-        </V84>
-        <V85>
-            <Name>SPI5</Name>
-            <Number>85</Number>
-        </V85>
-        <V86>
-            <Name>SPI6</Name>
-            <Number>86</Number>
-        </V86>
-        <V87>
-            <Name>SAI1</Name>
-            <Number>87</Number>
-        </V87>
-        <V88>
-            <Name>LTDC</Name>
-            <Number>88</Number>
-        </V88>
-        <V89>
-            <Name>LTDC_ER</Name>
-            <Number>89</Number>
-        </V89>
-
-        <V90>
-            <Name>DMA2D</Name>
-            <Number>90</Number>
-        </V90>
-        <V91>
-            <Name>SAI2</Name>
-            <Number>91</Number>
-        </V91>
-        <V92>
-            <Name>QUADSPI</Name>
-            <Number>92</Number>
-        </V92>
-        <V93>
-            <Name>LPTIM1</Name>
-            <Number>93</Number>
-        </V93>
-        <V94>
-            <Name>CEC</Name>
-            <Number>94</Number>
-        </V94>
-        <V95>
-            <Name>I2C4_EV</Name>
-            <Number>95</Number>
-        </V95>
-        <V96>
-            <Name>I2C4_ER</Name>
-            <Number>96</Number>
-        </V96>
-        <V97>
-            <Name>SPDIF_RX</Name>
-            <Number>97</Number>
-        </V97>
-        <V98>
-            <Name>Reserved1</Name>
-            <Number>98</Number>
-        </V98>
-        <V99>
-            <Name>DFSDM1_FLT0</Name>
-            <Number>99</Number>
-        </V99>
-
-        <V100>
-            <Name>DFSDM1_FLT1</Name>
-            <Number>100</Number>
-        </V100>
-        <V101>
-            <Name>DFSDM1_FLT2</Name>
-            <Number>101</Number>
-        </V101>
-        <V102>
-            <Name>DFSDM1_FLT3</Name>
-            <Number>102</Number>
-        </V102>
-        <V103>
-            <Name>SDMMC2</Name>
-            <Number>103</Number>
-        </V103>
-        <V104>
-            <Name>CAN3_TX</Name>
-            <Number>104</Number>
-        </V104>
-        <V105>
-            <Name>CAN3_RX0</Name>
-            <Number>105</Number>
-        </V105>
-        <V106>
-            <Name>CAN3_RX1</Name>
-            <Number>106</Number>
-        </V106>
-        <V107>
-            <Name>CAN3_SCE</Name>
-            <Number>107</Number>
-        </V107>
-        <V108>
-            <Name>JPEG</Name>
-            <Number>108</Number>
-        </V108>
-        <V109>
-            <Name>MDIOS</Name>
-            <Number>109</Number>
-        </V109>
     </Vector>
 </Chip>

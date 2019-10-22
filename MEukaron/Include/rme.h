@@ -101,6 +101,10 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_CAPTBL_FLAG_PROC_CRT        (1<<6)
 /* This cap to captbl allows itself to be used in process capability table replacement */
 #define RME_CAPTBL_FLAG_PROC_CPT        (1<<7)
+/* This cap to captbl allows all operations */
+#define RME_CAPTBL_FLAG_ALL             (RME_CAPTBL_FLAG_CRT|RME_CAPTBL_FLAG_DEL|RME_CAPTBL_FLAG_FRZ| \
+                                         RME_CAPTBL_FLAG_ADD_SRC|RME_CAPTBL_FLAG_ADD_DST|RME_CAPTBL_FLAG_REM| \
+                                         RME_CAPTBL_FLAG_PROC_CRT|RME_CAPTBL_FLAG_PROC_CPT)
     
 /* Kernel memory */
 /* This cap to kernel memory allows creation of captbl */
@@ -115,6 +119,9 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_KMEM_FLAG_SIG               (1<<4)
 /* This cap to kernel memory allows creation of invocation */
 #define RME_KMEM_FLAG_INV               (1<<5)
+/* This cap to kernel memory allows all operations */
+#define RME_KMEM_FLAG_ALL               (RME_KMEM_FLAG_CAPTBL|RME_KMEM_FLAG_PGTBL|RME_KMEM_FLAG_PROC| \
+                                         RME_KMEM_FLAG_THD|RME_KMEM_FLAG_SIG|RME_KMEM_FLAG_INV)
 
 /* Page table */
 /* This cap to pgtbl allows delegating pages in it */
@@ -133,6 +140,10 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_PGTBL_FLAG_PROC_CRT         (1<<6)
 /* This cap to pgtbl allows itself to be used in process page table replacement */
 #define RME_PGTBL_FLAG_PROC_PGT         (1<<7)
+/* This cap to pgtbl allows all operations */
+#define RME_PGTBL_FLAG_ALL              (RME_PGTBL_FLAG_ADD_SRC|RME_PGTBL_FLAG_ADD_DST|RME_PGTBL_FLAG_REM| \
+                                         RME_PGTBL_FLAG_CON_CHILD|RME_PGTBL_FLAG_CON_PARENT|RME_PGTBL_FLAG_DES| \
+                                         RME_PGTBL_FLAG_PROC_CRT|RME_PGTBL_FLAG_PROC_PGT)
 
 /* Process */
 /* This cap to process allows creating invocation stubs in it */
@@ -143,6 +154,9 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_PROC_FLAG_CPT               (1<<2)
 /* This cap to process allows changing its page table */
 #define RME_PROC_FLAG_PGT               (1<<3)
+/* This cap to process allows all operations */
+#define RME_PROC_FLAG_ALL               (RME_PROC_FLAG_INV|RME_PROC_FLAG_THD| \
+                                         RME_PROC_FLAG_CPT|RME_PROC_FLAG_PGT)
 
 /* Thread */
 /* This cap to thread allows setting its execution parameters */
@@ -165,6 +179,10 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_THD_FLAG_XFER_DST           (1<<8)
 /* This cap to thread allows switching to it */
 #define RME_THD_FLAG_SWT                (1<<9)
+/* This cap to thread allows all operations */
+#define RME_THD_FLAG_ALL                (RME_THD_FLAG_EXEC_SET|RME_THD_FLAG_HYP_SET|RME_THD_FLAG_SCHED_CHILD| \
+                                         RME_THD_FLAG_SCHED_PARENT|RME_THD_FLAG_SCHED_PRIO|RME_THD_FLAG_SCHED_FREE| \
+                                         RME_THD_FLAG_SCHED_RCV|RME_THD_FLAG_XFER_SRC|RME_THD_FLAG_XFER_DST|RME_THD_FLAG_SWT)
 
 /* Invocation */
 /* This cap to invocation allows setting parameters for it */
@@ -172,6 +190,8 @@ Description : The header of the RME RTOS. This header defines the error codes,
 /* This cap to invocation allows activating it */
 #define RME_INV_FLAG_ACT                (1<<1)
 /* The return operation does not need a flag, nor does it need a capability */
+/* This cap to invocation allows all operations */
+#define RME_INV_FLAG_ALL                (RME_INV_FLAG_SET|RME_INV_FLAG_ACT)
 
 /* Signal */
 /* This cap to signal endpoint allows sending to it */
@@ -184,8 +204,13 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_SIG_FLAG_RCV_NS             (1<<3)
 /* This cap to signal endpoint allows non-blocking multi receive on it */
 #define RME_SIG_FLAG_RCV_NM             (1<<4)
+/* This cap to signal endpoint allows all receiving operations */
+#define RME_SIG_FLAG_RCV                (RME_SIG_FLAG_RCV_BS|RME_SIG_FLAG_RCV_BM| \
+                                         RME_SIG_FLAG_RCV_NS|RME_SIG_FLAG_RCV_NM)
 /* This cap to signal endpoint allows sending scheduler notification to it */
 #define RME_SIG_FLAG_SCHED              (1<<5)
+/* This cap to signal endpoint allows all operations */
+#define RME_SIG_FLAG_ALL                (RME_SIG_FLAG_SND|RME_SIG_FLAG_RCV|RME_SIG_FLAG_SCHED)
 /* End Operation Flags *******************************************************/
 
 /* Special Definitions *******************************************************/
@@ -279,6 +304,7 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_PGTBL_SIZE_1Z               (70)
 
 /* Generic page table entry number definitions */
+#define RME_PGTBL_NUM_1                 (0)
 #define RME_PGTBL_NUM_2                 (1)
 #define RME_PGTBL_NUM_4                 (2)
 #define RME_PGTBL_NUM_8                 (3)
@@ -409,6 +435,8 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_KERN_INT_GLOBAL_MOD         (0xF101)
 /* Trigger a local interrupt */
 #define RME_KERN_INT_LOCAL_TRIG         (0xF102)
+/* Trigger a local event */
+#define RME_KERN_EVT_LOCAL_TRIG         (0xF103)
 /* Cache operations **********************************************************/
 /* Enable cache */
 #define RME_KERN_CACHE_ENABLE           (0xF200)
@@ -432,14 +460,16 @@ Description : The header of the RME RTOS. This header defines the error codes,
 /* Modify physical memory configuration */
 #define RME_KERN_HPNP_PMEM_MOD          (0xF302)
 /* Hot plug and pull operations **********************************************/
+/* Put CPU into idle sleep mode */
+#define RME_KERN_IDLE_SLEEP             (0xF400)
 /* Modify voltage configuration */
-#define RME_KERN_VOLTAGE_MOD            (0xF400)
+#define RME_KERN_VOLTAGE_MOD            (0xF401)
 /* Modify frequency configuration */
-#define RME_KERN_FREQ_MOD               (0xF401)
+#define RME_KERN_FREQ_MOD               (0xF402)
 /* Modify power state */
-#define RME_KERN_POWER_MOD              (0xF402)
+#define RME_KERN_POWER_MOD              (0xF403)
 /* Modify safety lock state */
-#define RME_KERN_SAFETY_MOD             (0xF403)
+#define RME_KERN_SAFETY_MOD             (0xF404)
 /* Performance monitoring operations *****************************************/
 /* Query or modify CPU function configuration */
 #define RME_KERN_PERF_CPU_FUNC          (0xF500)

@@ -1484,8 +1484,8 @@ __EXTERN__ void __RME_Inv_Reg_Save(struct RME_Iret_Struct* Ret, struct RME_Reg_S
 __EXTERN__ void __RME_Inv_Reg_Restore(struct RME_Reg_Struct* Reg, struct RME_Iret_Struct* Ret);
 __EXTERN__ void __RME_Set_Inv_Retval(struct RME_Reg_Struct* Reg, rme_ret_t Retval);
 /* Kernel function handler */
-__EXTERN__ rme_ptr_t __RME_Kern_Func_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Func_ID,
-                                             rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2);
+__EXTERN__ rme_ret_t __RME_Kern_Func_Handler(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,
+                                             rme_ptr_t Func_ID, rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2);
 /* Fault handler */
 __EXTERN__ void __RME_X64_Fault_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Reason);
 /* Generic interrupt handler */
@@ -1493,7 +1493,7 @@ __EXTERN__ void __RME_X64_Generic_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t 
 /* Page table operations */
 __EXTERN__ void __RME_Pgtbl_Set(rme_ptr_t Pgtbl);
 __EXTERN__ rme_ptr_t __RME_Pgtbl_Kmem_Init(void);
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Check(rme_ptr_t Start_Addr, rme_ptr_t Top_Flag, rme_ptr_t Size_Order, rme_ptr_t Num_Order, rme_ptr_t Vaddr);
+__EXTERN__ rme_ptr_t __RME_Pgtbl_Check(rme_ptr_t Base_Addr, rme_ptr_t Top_Flag, rme_ptr_t Size_Order, rme_ptr_t Num_Order, rme_ptr_t Vaddr);
 __EXTERN__ rme_ptr_t __RME_Pgtbl_Init(struct RME_Cap_Pgtbl* Pgtbl_Op);
 __EXTERN__ rme_ptr_t __RME_Pgtbl_Del_Check(struct RME_Cap_Pgtbl* Pgtbl_Op);
 __EXTERN__ rme_ptr_t __RME_Pgtbl_Page_Map(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Paddr, rme_ptr_t Pos, rme_ptr_t Flags);

@@ -2,10 +2,10 @@
 ;Filename    : rme_platform_a7m_asm.s
 ;Author      : pry
 ;Date        : 19/01/2017
-;Description : The Cortex-M assembly support of the RME RTOS.
+;Description : The ARMv7-M assembly support of the RME RTOS.
 ;*****************************************************************************/
 
-;/* The ARM Cortex-M3/4/7 Architecture ****************************************
+;/* The ARMv7-M Architecture **************************************************
 ;R0-R7:General purpose registers that are accessible. 
 ;R8-R12:general purpose registers that can only be reached by 32-bit instructions.
 ;R13:SP/SP_process/SP_main    Stack pointer
@@ -26,7 +26,7 @@ Stack_Size              EQU 0x00000400
 Stack_Mem               SPACE Stack_Size
 __initial_sp
 
-Heap_Size               EQU 0x00000200
+Heap_Size               EQU 0x00000000
     AREA                HEAP, NOINIT, READWRITE, ALIGN=3
 __heap_base
 Heap_Mem                SPACE Heap_Size
@@ -47,6 +47,8 @@ __heap_limit
     EXPORT              __RME_Disable_Int
     ;Enable all interrupts
     EXPORT              __RME_Enable_Int
+    ;A full barrier
+    EXPORT              __RME_A7M_Barrier
     ;Wait until interrupts happen
     EXPORT              __RME_A7M_Wait_Int
     ;Get the MSB in a word
@@ -61,11 +63,13 @@ __heap_limit
     EXPORT              ___RME_A7M_Thd_Cop_Restore
     ;The MPU setup routine
     EXPORT              ___RME_A7M_MPU_Set
+    ;A full barrier
+    EXPORT              __RME_A7M_Barrier
 ;/* End Exports **************************************************************/
 
 ;/* Begin Imports ************************************************************/
-    ;What keil and CMSIS provided. Have to call these.
-    IMPORT              SystemInit
+    ;Preinitialization routine.
+    IMPORT              __RME_A7M_Low_Level_Preinit
     IMPORT              __main
     ;The kernel entry of RME. This will be defined in C language.
     IMPORT              RME_Kmain
@@ -76,7 +80,7 @@ __heap_limit
     ;The memory management fault handler of RME. This will be defined in C language.
     IMPORT              __RME_A7M_Fault_Handler
     ;The generic interrupt handler for all other vectors.
-    IMPORT              __RME_A7M_Generic_Handler
+    IMPORT              __RME_A7M_Vect_Handler
 ;/* End Imports **************************************************************/
 
 ;/* Begin Vector Table *******************************************************/
@@ -388,12 +392,12 @@ __user_initial_stackheap
 
 ;/* Begin Handlers ***********************************************************/
 Reset_Handler           PROC
-     LDR                R0, =SystemInit
+     LDR                R0, =__RME_A7M_Low_Level_Preinit
      BLX                R0
      LDR                R0, =__main
      BX                 R0
      ENDP
-                     
+
 Default_Handler         PROC
 
      EXPORT             IRQ0_Handler        [WEAK]  ; 240 External Interrupts
@@ -932,7 +936,7 @@ IRQ239_Handler
     MRS                 R1,xPSR             ; Pass in the interrupt number
     UBFX                R1,R1,#0,#9         ; Extract the interrupt number bitfield
     SUB                 R1,#16              ; The IRQ0's starting number is 16. we subtract it here
-    BL                  __RME_A7M_Generic_Handler
+    BL                  __RME_A7M_Vect_Handler
     
     POP                 {R0}
     MSR                 PSP,R0
@@ -967,6 +971,19 @@ __RME_Enable_Int
     BX                  LR
 ;/* End Function:__RME_Enable_Int ********************************************/
 
+;/* Begin Function:__RME_A7M_Barrier ******************************************
+;Description : A full data/instruction barrier.
+;Input       : None.
+;Output      : None.    
+;Return      : None.
+;*****************************************************************************/
+__RME_A7M_Barrier
+    ;Enable all interrupts.
+    DSB                 SY
+    ISB                 SY
+    BX                  LR
+;/* End Function:__RME_A7M_Barrier *******************************************/
+
 ;/* Begin Function:__RME_A7M_Wait_Int *****************************************
 ;Description : Wait until a new interrupt comes, to save power.
 ;Input       : None.
@@ -974,8 +991,8 @@ __RME_Enable_Int
 ;Return      : None.
 ;*****************************************************************************/
 __RME_A7M_Wait_Int
-    ;Wait for interrupt.
-    WFI 
+    ;Wait for interrupt or events.
+    WFE
     BX                  LR
 ;/* End Function:__RME_A7M_Wait_Int ******************************************/
 

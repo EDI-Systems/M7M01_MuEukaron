@@ -1,20 +1,10 @@
 ;******************************************************************************
 ;Filename    : rme_platform_STM32F767IG.sct
-;Author      : pry
-;Date        : 24/06/2017
-;Licence     : The Unlicense; see LICENSE for details.
-;Description : The scatter file for Cortex-M7 layout. This file is intended 
-;              to be used with STM32F767IGxx.
-;              ROM: 0x08000000 0x00100000
-;              RAM: 0x20000000 0x00080000
-;              System ROM layout:
-;              |0x08000000            0x0800FFFF|0x08010000         0x080FFFFF|
-;              |<-           Kernel           ->|<-           User          ->|
-;              System RAM layout:
-;              |0x20000000            0x20001FFF|0x20002000         0x20003FFF|
-;              |<-        Kernel Stack        ->|<-        Kernel Data      ->|
-;              |0x20004000            0x2000FFFF|0x20010000         0x2007FFFF|
-;              |<-       Kernel Objects       ->|<-           User          ->|
+;Author      : The RME project generator.
+;Date        : 07/10/2019
+;Licence     : LGPL v3+; see COPYING for details.
+;Description : The scatter file for ARMv7-M layout. This file is intended
+;              to be used with STM32F767IG.
 ;******************************************************************************
 
 ; Begin Segment:KERNEL ********************************************************
@@ -22,11 +12,12 @@
 ;               system is located at. This segment also contains the .bss(ZI)
 ;               for processes.
 ; *****************************************************************************
-KERNEL 0x08000000 0x00010000
-{   
-    ; Kernel code segment - 64kB
-    KERNEL_CODE 0x08000000 0x00010000
-    {   ; The reset vectors
+KERNEL 0x8000000 0x10000
+{
+    ; Kernel code segment
+    KERNEL_CODE 0x8000000 0x10000
+    {
+        ; The reset vectors
         *.o                            (RESET, +First)
         ; The lib code copying code
         *                              (InRoot$$Sections)
@@ -35,27 +26,22 @@ KERNEL 0x08000000 0x00010000
         ; The kernel code section
         .ANY                           (+RO)
     }
-    
-    ; Kernel stack segment - 4kB
-    KERNEL_STACK 0x20000000 0x00001000
+
+    ; Kernel stack segment
+    KERNEL_STACK 0x2000EC00 0x1000
     {
-        rme_platform_a7m.o                 (HEAP)
-        rme_platform_a7m.o                 (STACK)
+        rme_platform_a7m_asm.o             (HEAP)
+        rme_platform_a7m_asm.o             (STACK)
     }
-    
-    ; Initial kernel data segment - 8kB 
-    KERNEL_INIT 0x20001000 0x00002000
+
+    ; Initial kernel data segment
+    KERNEL_INIT 0x20000000 0xC400
     {
         .ANY                           (+RW +ZI)
     }
-    
-    ; Dynamically managed kernel data segment - 52kB
-    KERNEL_DATA 0x20003000 EMPTY 0x0000D000
-    {
-        
-    }
-    ; The data section of the processes - The rest of the memory
-    PROC_DATA 0x20010000 EMPTY 0x00070000
+
+    ; Dynamically managed kernel data segment
+    KERNEL_DATA 0x2000C400 EMPTY 0x2800
     {
 
     }
@@ -65,30 +51,58 @@ KERNEL 0x08000000 0x00010000
 ; Begin Segment:INIT **********************************************************
 ; Description : The .text segment of process INIT. Init is the first process
 ;               in the system, and should act as a memory manager itself.
-;               The .RODATA size if this process is 0x00010000.
 ; *****************************************************************************
-INIT 0x08010000 0x00010000
+INIT 0x8010000 0x10000
 {
-    ; Init process code segment - 64kB
-    INIT_CODE 0x08010000 0x00010000
+    ; Init process code segment
+    INIT_CODE 0x8010000 0x10000
     {
-        M7M2_Init.o                    (+RO)
+        RVM.o                          (+RO)
     }
 }
 ; End Segment:INIT ************************************************************
 
-; Begin Segment:VM ************************************************************
+; Begin Segment:Proc **********************************************************
 ; Description : The .text segment of the virtual machines. All virtual machines
 ; needs to be placed here; If you don't want to convert them to C and compile to
 ; a whole image, flash them to this address.
 ; *****************************************************************************
-VM 0x08020000 0x000C0000
+Proc1 0x8020000 0x10000
 {
-    ; Init process code segment - 64kB
-    VM_CODE 0x08020000 0x000C0000
+    ; Init process code segment
+    Proc1_CODE 0x8020000 0x10000
     {
-        VM*.o                         (+RO)
-        rtthread.o                    (+RO)
+        Proc1.o                         (+RO)
+    }
+}
+; End Segment:VM **************************************************************
+
+; Begin Segment:Proc **********************************************************
+; Description : The .text segment of the virtual machines. All virtual machines
+; needs to be placed here; If you don't want to convert them to C and compile to
+; a whole image, flash them to this address.
+; *****************************************************************************
+Proc2 0x8030000 0x10000
+{
+    ; Init process code segment
+    Proc2_CODE 0x8030000 0x10000
+    {
+        Proc2.o                         (+RO)
+    }
+}
+; End Segment:VM **************************************************************
+
+; Begin Segment:Proc **********************************************************
+; Description : The .text segment of the virtual machines. All virtual machines
+; needs to be placed here; If you don't want to convert them to C and compile to
+; a whole image, flash them to this address.
+; *****************************************************************************
+Virt1 0x8040000 0x10000
+{
+    ; Init process code segment
+    Virt1_CODE 0x8040000 0x10000
+    {
+        Virt1.o                         (+RO)
     }
 }
 ; End Segment:VM **************************************************************
@@ -96,3 +110,5 @@ VM 0x08020000 0x000C0000
 ; End Of File *****************************************************************
 
 ; Copyright (C) Evo-Devo Instrum. All rights reserved *************************
+
+

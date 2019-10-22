@@ -242,10 +242,16 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
     /* Fast path - synchronous invocation returning */
     if(Svc_Num==RME_SVC_INV_RET)
     {
+        RME_COVERAGE_MARKER();
+        
         Retval=_RME_Inv_Ret(Reg      /* struct RME_Reg_Struct* Reg */,
                             Param[0] /* rme_ptr_t Retval */,
                             0        /* rme_ptr_t Fault_Flag */);
         RME_SWITCH_RETURN(Reg,Retval);
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
     }
     
     /* Get our current capability table. No need to check whether it is frozen
@@ -253,17 +259,31 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
     CPU_Local=RME_CPU_LOCAL();
     Inv_Top=RME_INVSTK_TOP(CPU_Local->Cur_Thd);
     if(Inv_Top==0)
+    {
+        RME_COVERAGE_MARKER();
+        
         Captbl=(CPU_Local->Cur_Thd)->Sched.Proc->Captbl;
+    }
     else
+    {
+        RME_COVERAGE_MARKER();
+        
         Captbl=Inv_Top->Proc->Captbl;
+    }
 
     /* Fast path - synchronous invocation activation */
     if(Svc_Num==RME_SVC_INV_ACT)
     {
+        RME_COVERAGE_MARKER();
+        
         Retval=_RME_Inv_Act(Captbl, Reg      /* struct RME_Reg_Struct* Reg */,
                                     Param[0] /* rme_cid_t Cap_Inv */,
                                     Param[1] /* rme_ptr_t Param */);
         RME_SWITCH_RETURN(Reg,Retval);
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
     }
 
     /* See if this operation can potentially cause a register set switch. All the 
@@ -277,6 +297,8 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         /* Send to a signal endpoint */
         case RME_SVC_SIG_SND:
         {
+            RME_COVERAGE_MARKER();
+            
             Retval=_RME_Sig_Snd(Captbl, Reg      /* struct RME_Reg_Struct* Reg */,
                                         Param[0] /* rme_cid_t Cap_Sig */);
             RME_SWITCH_RETURN(Reg,Retval);
@@ -284,6 +306,8 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         /* Receive from a signal endpoint */
         case RME_SVC_SIG_RCV:
         {
+            RME_COVERAGE_MARKER();
+            
             Retval=_RME_Sig_Rcv(Captbl, Reg      /* struct RME_Reg_Struct* Reg */,
                                         Param[0] /* rme_cid_t Cap_Sig */,
                                         Param[1] /* rme_ptr_t Option */);
@@ -292,6 +316,8 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         /* Call kernel functions */
         case RME_SVC_KERN:
         {
+            RME_COVERAGE_MARKER();
+            
             Retval=_RME_Kern_Act(Captbl, Reg                    /* struct RME_Reg_Struct* Reg */,
                                          Capid                  /* rme_cid_t Cap_Kern */,
                                          RME_PARAM_D0(Param[0]) /* rme_ptr_t Func_ID */,
@@ -303,6 +329,8 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         /* Changing thread priority */
         case RME_SVC_THD_SCHED_PRIO:
         {
+            RME_COVERAGE_MARKER();
+            
             Retval=_RME_Thd_Sched_Prio(Captbl, Reg      /* struct RME_Reg_Struct* Reg */,
                                                Param[0] /* rme_cid_t Cap_Thd */,
                                                Param[1] /* rme_ptr_t Prio */);
@@ -311,6 +339,8 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         /* Free a thread from some core */
         case RME_SVC_THD_SCHED_FREE:
         {
+            RME_COVERAGE_MARKER();
+            
             Retval=_RME_Thd_Sched_Free(Captbl, Reg      /* struct RME_Reg_Struct* Reg */,
                                                Param[0] /* rme_cid_t Cap_Thd */);
             RME_SWITCH_RETURN(Reg,Retval);
@@ -318,6 +348,8 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         /* Transfer time to a thread */
         case RME_SVC_THD_TIME_XFER:
         {
+            RME_COVERAGE_MARKER();
+            
             Retval=_RME_Thd_Time_Xfer(Captbl, Reg      /* struct RME_Reg_Struct* Reg */,
                                               Param[0] /* rme_cid_t Cap_Thd_Dst */,
                                               Param[1] /* rme_cid_t Cap_Thd_Src */, 
@@ -327,12 +359,18 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         /* Switch to another thread */
         case RME_SVC_THD_SWT:
         {
+            RME_COVERAGE_MARKER();
+            
             Retval=_RME_Thd_Swt(Captbl, Reg      /* struct RME_Reg_Struct* Reg */,
                                         Param[0] /* rme_cid_t Cap_Thd */,
                                         Param[1] /* rme_ptr_t Full_Yield */);
             RME_SWITCH_RETURN(Reg, Retval);
         }
-        default:break;
+        default:
+        {
+            RME_COVERAGE_MARKER();
+            break;
+        }
     } 
 
     /* It is guaranteed that these functions will never cause a context switch */
@@ -340,7 +378,8 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
     {
         /* Capability table */
         case RME_SVC_CAPTBL_CRT:
-        { 
+        {
+            RME_COVERAGE_MARKER();
             Retval=_RME_Captbl_Crt(Captbl, Capid                  /* rme_cid_t Cap_Captbl_Crt */,
                                            RME_PARAM_D1(Param[0]) /* rme_cid_t Cap_Kmem */,
                                            RME_PARAM_D0(Param[0]) /* rme_cid_t Cap_Crt */,
@@ -350,18 +389,24 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         }
         case RME_SVC_CAPTBL_DEL:
         {
+            RME_COVERAGE_MARKER();
+            
             Retval=_RME_Captbl_Del(Captbl, Capid    /* rme_cid_t Cap_Captbl_Del */,
                                            Param[0] /* rme_cid_t Cap_Captbl */);
             break;
         }
         case RME_SVC_CAPTBL_FRZ:
         {
+            RME_COVERAGE_MARKER();
+            
             Retval=_RME_Captbl_Frz(Captbl, Capid    /* rme_cid_t Cap_Captbl_Frz */,
                                            Param[0] /* rme_cid_t Cap_Frz */);
             break;
         }
         case RME_SVC_CAPTBL_ADD:
         {
+            RME_COVERAGE_MARKER();
+            
             Retval=_RME_Captbl_Add(Captbl, RME_PARAM_D1(Param[0])  /* rme_cid_t Cap_Captbl_Dst */,
                                            RME_PARAM_D0(Param[0])  /* rme_cid_t Cap_Dst */,
                                            RME_PARAM_D1(Param[1])  /* rme_cid_t Cap_Captbl_Src */,
@@ -372,6 +417,8 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         }
         case RME_SVC_CAPTBL_REM:
         {
+            RME_COVERAGE_MARKER();
+            
             Retval=_RME_Captbl_Rem(Captbl, Capid    /* rme_cid_t Cap_Captbl_Rem */,
                                            Param[0] /* rme_cid_t Cap_Rem */);
             break;
@@ -379,40 +426,50 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         /* Page table */
         case RME_SVC_PGTBL_CRT:
         {
-            Retval=_RME_Pgtbl_Crt(Captbl, Capid                  /* rme_cid_t Cap_Captbl */,
-                                          RME_PARAM_D1(Param[0]) /* rme_cid_t Cap_Kmem */,
-                                          RME_PARAM_Q1(Param[0]) /* rme_cid_t Cap_Pgtbl */,
-                                          Param[1]               /* rme_ptr_t Raddr */,
-                                          Param[2]               /* rme_ptr_t Start_Addr */,
-                                          RME_PARAM_PT(Param[2]) /* rme_ptr_t Top_Flag */,
-                                          RME_PARAM_Q0(Param[0]) /* rme_ptr_t Size_Order */,
-                                          RME_PARAM_PC(Svc)      /* rme_ptr_t Num_Order */);
+            RME_COVERAGE_MARKER();
+            
+            Retval=_RME_Pgtbl_Crt(Captbl, Capid                     /* rme_cid_t Cap_Captbl */,
+                                          RME_PARAM_D1(Param[0])    /* rme_cid_t Cap_Kmem */,
+                                          RME_PARAM_Q1(Param[0])    /* rme_cid_t Cap_Pgtbl */,
+                                          Param[1]                  /* rme_ptr_t Raddr */,
+                                          Param[2]&(RME_ALLBITS<<1) /* rme_ptr_t Base_Addr */,
+                                          RME_PARAM_PT(Param[2])    /* rme_ptr_t Top_Flag */,
+                                          RME_PARAM_Q0(Param[0])    /* rme_ptr_t Size_Order */,
+                                          RME_PARAM_PC(Svc)         /* rme_ptr_t Num_Order */);
             break;
         }
         case RME_SVC_PGTBL_DEL:
         {
+            RME_COVERAGE_MARKER();
+            
             Retval=_RME_Pgtbl_Del(Captbl, Capid    /* rme_cid_t Cap_Captbl */,
                                           Param[0] /* rme_cid_t Cap_Pgtbl */);
             break;
         }
         case RME_SVC_PGTBL_ADD:
         {
+            RME_COVERAGE_MARKER();
+            
             Retval=_RME_Pgtbl_Add(Captbl, RME_PARAM_D1(Param[0]) /* rme_cid_t Cap_Pgtbl_Dst */,
                                           RME_PARAM_D0(Param[0]) /* rme_ptr_t Pos_Dst */,
-                                          RME_PARAM_D1(Param[2]) /* rme_ptr_t Flags_Dst */,
+                                          Capid                  /* rme_ptr_t Flags_Dst */,
                                           RME_PARAM_D1(Param[1]) /* rme_cid_t Cap_Pgtbl_Src */,
                                           RME_PARAM_D0(Param[1]) /* rme_ptr_t Pos_Src */,
-                                          RME_PARAM_D0(Param[2]) /* rme_ptr_t Index */);
+                                          Param[2]               /* rme_ptr_t Index */);
             break;
         }
         case RME_SVC_PGTBL_REM:
         {
+            RME_COVERAGE_MARKER();
+            
             Retval=_RME_Pgtbl_Rem(Captbl, Param[0] /* rme_cid_t Cap_Pgtbl */,
                                           Param[1] /* rme_ptr_t Pos */);
             break;
         }
         case RME_SVC_PGTBL_CON:
         {
+            RME_COVERAGE_MARKER();
+            
             Retval=_RME_Pgtbl_Con(Captbl, RME_PARAM_D1(Param[0]) /* rme_cid_t Cap_Pgtbl_Parent */,
                                           Param[1]               /* rme_ptr_t Pos */,
                                           RME_PARAM_D0(Param[0]) /* rme_cid_t Cap_Pgtbl_Child */,
@@ -421,6 +478,8 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         }
         case RME_SVC_PGTBL_DES:
         {
+            RME_COVERAGE_MARKER();
+            
             Retval=_RME_Pgtbl_Des(Captbl, Param[0] /* rme_cid_t Cap_Pgtbl */,
                                           Param[1] /* rme_ptr_t Pos */);
             break;
@@ -438,18 +497,24 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         }
         case RME_SVC_PROC_DEL:
         {
+            RME_COVERAGE_MARKER();
+            
             Retval=_RME_Proc_Del(Captbl, Capid    /* rme_cid_t Cap_Captbl */,
                                          Param[0] /* rme_cid_t Cap_Proc */);
             break;
         }
         case RME_SVC_PROC_CPT:
         {
+            RME_COVERAGE_MARKER();
+            
             Retval=_RME_Proc_Cpt(Captbl, Param[0] /* rme_cid_t Cap_Proc */,
                                          Param[1] /* rme_cid_t Cap_Captbl */);
             break;
         }
         case RME_SVC_PROC_PGT:
         {
+            RME_COVERAGE_MARKER();
+            
             Retval=_RME_Proc_Pgt(Captbl, Param[0] /* rme_cid_t Cap_Proc */,
                                          Param[1] /* rme_cid_t Cap_Pgtbl */);
             break;
@@ -457,6 +522,8 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         /* Thread */
         case RME_SVC_THD_CRT:
         {
+            RME_COVERAGE_MARKER();
+            
             Retval=_RME_Thd_Crt(Captbl, Capid                  /* rme_cid_t Cap_Captbl */,
                                         RME_PARAM_D1(Param[0]) /* rme_cid_t Cap_Kmem */,
                                         RME_PARAM_D0(Param[0]) /* rme_cid_t Cap_Thd */,
@@ -467,12 +534,16 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         }
         case RME_SVC_THD_DEL:
         {
+            RME_COVERAGE_MARKER();
+            
             Retval=_RME_Thd_Del(Captbl, Capid    /* rme_cid_t Cap_Captbl */,
                                         Param[0] /* rme_cid_t Cap_Thd */);
             break;
         }
         case RME_SVC_THD_EXEC_SET:
         {
+            RME_COVERAGE_MARKER();
+            
             Retval=_RME_Thd_Exec_Set(Captbl, Capid    /* rme_cid_t Cap_Thd */,
                                              Param[0] /* rme_ptr_t Entry */,
                                              Param[1] /* rme_ptr_t Stack */,
@@ -481,12 +552,16 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         }
         case RME_SVC_THD_HYP_SET:
         {
+            RME_COVERAGE_MARKER();
+            
             Retval=_RME_Thd_Hyp_Set(Captbl, Param[0] /* rme_cid_t Cap_Thd */,
                                             Param[1] /* rme_ptr_t Kaddr */);
             break;
         }
         case RME_SVC_THD_SCHED_BIND:
         {
+            RME_COVERAGE_MARKER();
+            
             Retval=_RME_Thd_Sched_Bind(Captbl, Capid                  /* rme_cid_t Cap_Thd */,
                                                RME_PARAM_D1(Param[0]) /* rme_cid_t Cap_Thd_Sched */,
                                                RME_PARAM_D0(Param[0]) /* rme_cid_t Cap_Sig */,
@@ -496,12 +571,17 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         }
         case RME_SVC_THD_SCHED_RCV:
         {
-            Retval=_RME_Thd_Sched_Rcv(Captbl, Param[0] /* rme_cid_t Cap_Thd */);
+            RME_COVERAGE_MARKER();
+            
+            Retval=_RME_Thd_Sched_Rcv(Captbl, Reg      /* struct RME_Reg_Struct* Reg */,
+                                              Param[0] /* rme_cid_t Cap_Thd */);
             break;
         }
         /* Signal */
         case RME_SVC_SIG_CRT:
         {
+            RME_COVERAGE_MARKER();
+            
             Retval=_RME_Sig_Crt(Captbl, Capid    /* rme_cid_t Cap_Captbl */,
                                         Param[0] /* rme_cid_t Cap_Kmem */,
                                         Param[1] /* rme_cid_t Cap_Sig */, 
@@ -510,6 +590,8 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         }
         case RME_SVC_SIG_DEL:
         {
+            RME_COVERAGE_MARKER();
+            
             Retval=_RME_Sig_Del(Captbl, Capid    /* rme_cid_t Cap_Captbl */,
                                         Param[0] /* rme_cid_t Cap_Sig */);
             break;
@@ -517,6 +599,8 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         /* Invocation */
         case RME_SVC_INV_CRT:
         {
+            RME_COVERAGE_MARKER();
+            
             Retval=_RME_Inv_Crt(Captbl, Capid                  /* rme_cid_t Cap_Captbl */,
                                         RME_PARAM_D1(Param[0]) /* rme_cid_t Cap_Kmem */,
                                         RME_PARAM_D0(Param[0]) /* rme_cid_t Cap_Inv */,
@@ -526,12 +610,16 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         }
         case RME_SVC_INV_DEL:
         {
+            RME_COVERAGE_MARKER();
+            
             Retval=_RME_Inv_Del(Captbl, Capid    /* rme_cid_t Cap_Captbl */,
                                         Param[0] /* rme_cid_t Cap_Inv */);
             break;
         }
         case RME_SVC_INV_SET:
         {
+            RME_COVERAGE_MARKER();
+            
             Retval=_RME_Inv_Set(Captbl, RME_PARAM_D0(Param[0]) /* rme_cid_t Cap_Inv */,
                                         Param[1]               /* rme_ptr_t Entry */,
                                         Param[2]               /* rme_ptr_t Stack */,
@@ -541,10 +629,13 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
         /* This is an error */
         default: 
         {
+            RME_COVERAGE_MARKER();
+            
             Retval=RME_ERR_CAP_NULL;
             break;
         }
     }
+    
     /* We set the registers and return */
     __RME_Set_Syscall_Retval(Reg, Retval);
 }
@@ -578,22 +669,34 @@ void _RME_Tick_SMP_Handler(struct RME_Reg_Struct* Reg)
     CPU_Local=RME_CPU_LOCAL();
     if((CPU_Local->Cur_Thd)->Sched.Slices<RME_THD_INF_TIME)
     {
+        RME_COVERAGE_MARKER();
+        
         /* Decrease timeslice count */
         (CPU_Local->Cur_Thd)->Sched.Slices--;
         /* See if the current thread's timeslice is used up */
         if((CPU_Local->Cur_Thd)->Sched.Slices==0)
         {
+            RME_COVERAGE_MARKER();
+            
             /* Running out of time. Kick this guy out and pick someone else */
             (CPU_Local->Cur_Thd)->Sched.State=RME_THD_TIMEOUT;
             /* Delete it from runqueue */
             _RME_Run_Del(CPU_Local->Cur_Thd);
             /* Send a scheduler notification to its parent */
-            _RME_Run_Notif(Reg,CPU_Local->Cur_Thd);
+            _RME_Run_Notif(CPU_Local->Cur_Thd);
         }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
     }
 
     /* Send to the system ticker receive endpoint. This endpoint is per-core */
-    _RME_Kern_Snd(Reg, CPU_Local->Tick_Sig);
+    _RME_Kern_Snd(CPU_Local->Tick_Sig);
 
     /* All kernel send complete, now pick the highest priority thread to run */
     _RME_Kern_High(Reg, CPU_Local);
@@ -654,7 +757,15 @@ rme_ret_t _RME_Memcmp(const void* Ptr1, const void* Ptr2, rme_ptr_t Num)
     for(Count=0;Count<Num;Count++)
     {
         if(Dst[Count]!=Src[Count])
+        {
+            RME_COVERAGE_MARKER();
+            
             return Dst[Count]-Src[Count];
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
     }
 
     return 0;
@@ -697,11 +808,15 @@ rme_cnt_t RME_Print_Int(rme_cnt_t Int)
     /* how many digits are there? */
     if(Int==0)
     {
+        RME_COVERAGE_MARKER();
+        
         __RME_Putchar('0');
         return 1;
     }
     else if(Int<0)
     {
+        RME_COVERAGE_MARKER();
+        
         /* How many digits are there? */
         Count=0;
         Div=1;
@@ -728,6 +843,8 @@ rme_cnt_t RME_Print_Int(rme_cnt_t Int)
     }
     else
     {
+        RME_COVERAGE_MARKER();
+        
         /* How many digits are there? */
         Count=0;
         Div=1;
@@ -772,11 +889,15 @@ rme_cnt_t RME_Print_Uint(rme_ptr_t Uint)
     /* how many digits are there? */
     if(Uint==0)
     {
+        RME_COVERAGE_MARKER();
+        
         __RME_Putchar('0');
         return 1;
     }
     else
     {
+        RME_COVERAGE_MARKER();
+        
         /* Filter out all the zeroes */
         Count=0;
         Iter=Uint;
@@ -785,6 +906,7 @@ rme_cnt_t RME_Print_Uint(rme_ptr_t Uint)
             Iter<<=4;
             Count++;
         }
+        
         /* Count is the number of pts to print */
         Count=sizeof(rme_ptr_t)*2-Count;
         Num=Count;
@@ -818,7 +940,15 @@ rme_cnt_t RME_Print_String(rme_s8_t* String)
     while(Count<RME_KERNEL_DEBUG_MAX_STR)
     {
         if(String[Count]=='\0')
+        {
+            RME_COVERAGE_MARKER();
+            
             break;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
         
         __RME_Putchar(String[Count++]);
     }
@@ -845,11 +975,27 @@ rme_ret_t _RME_Captbl_Boot_Init(rme_cid_t Cap_Captbl, rme_ptr_t Vaddr, rme_ptr_t
 
     /* See if the entry number is too big */
     if((Entry_Num==0)||(Entry_Num>RME_CAPID_2L))
+    {
+        RME_COVERAGE_MARKER();
+        
     	return RME_ERR_CAP_RANGE;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     
     /* Try to populate the area */
     if(_RME_Kotbl_Mark(Vaddr, RME_CAPTBL_SIZE(Entry_Num))!=0)
+    {
+        RME_COVERAGE_MARKER();
+        
         return RME_ERR_CAP_KOTBL;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
 
     /* Done. We start creation of the capability table. Clear header as well */
     for(Count=0;Count<Entry_Num;Count++)
@@ -893,7 +1039,15 @@ rme_ret_t _RME_Captbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Capt
     
     /* See if the entry number is too big - this is not restricted by RME_CAPTBL_LIMIT */
     if((Entry_Num==0)||(Entry_Num>RME_CAPID_2L))
+    {
+        RME_COVERAGE_MARKER();
+        
         return RME_ERR_CAP_RANGE;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
 
     /* Get the cap location that we care about */
     RME_CAPTBL_GETCAP(Captbl,Cap_Captbl_Crt,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Op,Type_Ref);
@@ -953,12 +1107,28 @@ rme_ret_t _RME_Captbl_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Cr
 
     /* See if the entry number is too big */
     if((Entry_Num==0)||(Entry_Num>RME_CAPID_2L))
+    {
+        RME_COVERAGE_MARKER();
+        
         return RME_ERR_CAP_RANGE;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
 
     /* Are we overrunning the size limit? */
 #if(RME_CAPTBL_LIMIT!=0)
     if(Entry_Num>RME_CAPTBL_LIMIT)
+    {
+        RME_COVERAGE_MARKER();
+        
         return RME_ERR_CAP_RANGE;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
 #endif
 
     /* Get the cap location that we care about */
@@ -976,9 +1146,15 @@ rme_ret_t _RME_Captbl_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Cr
     /* Try to mark this area as populated */
     if(_RME_Kotbl_Mark(Vaddr, RME_CAPTBL_SIZE(Entry_Num))!=0)
     {
+        RME_COVERAGE_MARKER();
+        
         /* Failure. Set the Type_Ref back to 0 and abort the creation process */
         RME_WRITE_RELEASE(&(Captbl_Crt->Head.Type_Ref),0);
         return RME_ERR_CAP_KOTBL;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
     }
 
     /* Done. We start creation of the capability table. Clear header as well */
@@ -1036,8 +1212,14 @@ rme_ret_t _RME_Captbl_Del(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_De
     {
         if(RME_CAP_TYPE(RME_CAP_GETOBJ(Captbl_Del,struct RME_Cap_Struct*)[Count].Head.Type_Ref)!=RME_CAP_NOP)
         {
+            RME_COVERAGE_MARKER();
+            
             RME_CAP_DEFROST(Captbl_Del,Type_Ref);
             return RME_ERR_CAP_EXIST;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
         }
     }
     
@@ -1082,24 +1264,64 @@ rme_ret_t _RME_Captbl_Frz(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Fr
     Type_Ref=RME_READ_ACQUIRE(&(Captbl_Frz->Head.Type_Ref));
     /* See if there is a cap */
     if(RME_CAP_TYPE(Type_Ref)==RME_CAP_NOP)
+    {
+        RME_COVERAGE_MARKER();
+        
         return RME_ERR_CAP_NULL;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     /* The reference count does not allow freezing */
     if(RME_CAP_REF(Type_Ref)!=0)
+    {
+        RME_COVERAGE_MARKER();
+        
         return RME_ERR_CAP_REFCNT;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     /* The capability is already frozen - why do it again? */
     if((Type_Ref&RME_CAP_FROZEN)!=0)
+    {
+        RME_COVERAGE_MARKER();
+        
         return RME_ERR_CAP_FROZEN;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     
     /* See if the slot is quiescent */
     if(RME_UNLIKELY(RME_CAP_QUIE(Captbl_Frz->Head.Timestamp)==0))
+    {
+        RME_COVERAGE_MARKER();
+        
         return RME_ERR_CAP_QUIE;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
 
     /* Update the timestamp */
     Captbl_Frz->Head.Timestamp=RME_Timestamp;
     
     /* Finally, freeze it */
     if(RME_COMP_SWAP(&(Captbl_Frz->Head.Type_Ref),Type_Ref,Type_Ref|RME_CAPTBL_FLAG_FRZ)==0)
+    {
+        RME_COVERAGE_MARKER();
+        
         return RME_ERR_CAP_EXIST;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     
     return 0;
 }
@@ -1150,10 +1372,26 @@ rme_ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
     Type_Ref=RME_READ_ACQUIRE(&(Cap_Src_Struct->Head.Type_Ref));
     /* Is the source cap freezed? */
     if((Type_Ref&RME_CAP_FROZEN)!=0)
+    {
+        RME_COVERAGE_MARKER();
+        
         return RME_ERR_CAP_FROZEN;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     /* Does the source cap exist? */
     if(Type_Ref==0)
+    {
+        RME_COVERAGE_MARKER();
+        
         return RME_ERR_CAP_NULL;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
 
     /* Dewarn some compilers that complain about uninitialized variables */
     Kmem_End=0;
@@ -1163,32 +1401,102 @@ rme_ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
     /* Is there a flag conflict? - For page tables, we have different checking mechanisms */
     if(RME_CAP_TYPE(Cap_Src_Struct->Head.Type_Ref)==RME_CAP_PGTBL)
     {
+        RME_COVERAGE_MARKER();
+        
         /* Check the delegation range */
         if(RME_PGTBL_FLAG_HIGH(Flags)>RME_PGTBL_FLAG_HIGH(Cap_Src_Struct->Head.Flags))
+        {
+            RME_COVERAGE_MARKER();
+        
             return RME_ERR_CAP_FLAG;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
         if(RME_PGTBL_FLAG_LOW(Flags)<RME_PGTBL_FLAG_LOW(Cap_Src_Struct->Head.Flags))
+        {
+            RME_COVERAGE_MARKER();
+            
             return RME_ERR_CAP_FLAG;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
         if(RME_PGTBL_FLAG_HIGH(Flags)<RME_PGTBL_FLAG_LOW(Flags))
+        {
+            RME_COVERAGE_MARKER();
+            
             return RME_ERR_CAP_FLAG;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
         /* Check the flags - if there are extra ones, or all zero */
         if(RME_PGTBL_FLAG_FLAGS(Flags)==0)
+        {
+            RME_COVERAGE_MARKER();
+            
             return RME_ERR_CAP_FLAG;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
         if((RME_PGTBL_FLAG_FLAGS(Flags)&(~RME_PGTBL_FLAG_FLAGS(Cap_Src_Struct->Head.Flags)))!=0)
+        {
+            RME_COVERAGE_MARKER();
+            
             return RME_ERR_CAP_FLAG;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
     }
     else if(RME_CAP_TYPE(Cap_Src_Struct->Head.Type_Ref)==RME_CAP_KERN)
     {
+        RME_COVERAGE_MARKER();
+        
         /* Kernel capabilities only have ranges, no flags - check the delegation range */
         /* Check the delegation range */
         if(RME_KERN_FLAG_HIGH(Flags)>RME_KERN_FLAG_HIGH(Cap_Src_Struct->Head.Flags))
+        {
+            RME_COVERAGE_MARKER();
+            
             return RME_ERR_CAP_FLAG;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
         if(RME_KERN_FLAG_LOW(Flags)<RME_KERN_FLAG_LOW(Cap_Src_Struct->Head.Flags))
+        {
+            RME_COVERAGE_MARKER();
+            
             return RME_ERR_CAP_FLAG;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
         if(RME_KERN_FLAG_HIGH(Flags)<RME_KERN_FLAG_LOW(Flags))
+        {
+            RME_COVERAGE_MARKER();
+            
             return RME_ERR_CAP_FLAG;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
     }
     else if(RME_CAP_TYPE(Cap_Src_Struct->Head.Type_Ref)==RME_CAP_KMEM)
     {
+        RME_COVERAGE_MARKER();
+        
         Kmem_End=RME_KMEM_FLAG_HIGH(Flags,Ext_Flags);
         Kmem_Start=RME_KMEM_FLAG_LOW(Flags,Ext_Flags);
         Kmem_Flags=RME_KMEM_FLAG_FLAGS(Ext_Flags);
@@ -1199,40 +1507,122 @@ rme_ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
         Kmem_Start=RME_ROUND_UP(Kmem_Start,RME_KMEM_SLOT_ORDER);
 #endif
         if(Kmem_End<=Kmem_Start)
+        {
+            RME_COVERAGE_MARKER();
+            
             return RME_ERR_CAP_FLAG;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
 
         /* Convert relative addresses to absolute addresses and check for overflow */
         Kmem_Start+=((struct RME_Cap_Kmem*)Cap_Src_Struct)->Start;
         if(Kmem_Start<((struct RME_Cap_Kmem*)Cap_Src_Struct)->Start)
+        {
+            RME_COVERAGE_MARKER();
+            
             return RME_ERR_CAP_FLAG;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
         Kmem_End+=((struct RME_Cap_Kmem*)Cap_Src_Struct)->Start;
         if(Kmem_End<((struct RME_Cap_Kmem*)Cap_Src_Struct)->Start)
+        {
+            RME_COVERAGE_MARKER();
+            
             return RME_ERR_CAP_FLAG;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
 
         /* Check the ranges of kernel memory */
         if(((struct RME_Cap_Kmem*)Cap_Src_Struct)->Start>Kmem_Start)
+        {
+            RME_COVERAGE_MARKER();
+            
             return RME_ERR_CAP_FLAG;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
         if(((struct RME_Cap_Kmem*)Cap_Src_Struct)->End<(Kmem_End-1))
+        {
+            RME_COVERAGE_MARKER();
+            
             return RME_ERR_CAP_FLAG;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
         
         /* Check the flags - if there are extra ones, or all zero */
         if(Kmem_Flags==0)
+        {
+            RME_COVERAGE_MARKER();
+            
             return RME_ERR_CAP_FLAG;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
         if((Kmem_Flags&(~(Cap_Src_Struct->Head.Flags)))!=0)
+        {
+            RME_COVERAGE_MARKER();
+            
             return RME_ERR_CAP_FLAG;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
     }
     else
     {
+        RME_COVERAGE_MARKER();
+        
         /* Check the flags - if there are extra ones, or all zero */
         if(Flags==0)
+        {
+            RME_COVERAGE_MARKER();
+            
             return RME_ERR_CAP_FLAG;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
         if((Flags&(~(Cap_Src_Struct->Head.Flags)))!=0)
+        {
+            RME_COVERAGE_MARKER();
+            
             return RME_ERR_CAP_FLAG;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
     }
     
     /* Is the destination slot unoccupied? */
     if(Cap_Dst_Struct->Head.Type_Ref!=0)
+    {
+        RME_COVERAGE_MARKER();
+            
         return RME_ERR_CAP_EXIST;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     
     /* Try to take the empty slot */
     RME_CAPTBL_OCCUPY(Cap_Dst_Struct,Type_Ref);
@@ -1240,6 +1630,8 @@ rme_ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
     /* All done, we replicate the cap with flags */
     if(RME_CAP_TYPE(Cap_Src_Struct->Head.Type_Ref)==RME_CAP_KMEM)
     {
+        RME_COVERAGE_MARKER();
+            
         RME_CAP_COPY(Cap_Dst_Struct,Cap_Src_Struct,Kmem_Flags);
         /* If this is a kernel memory cap, we need to write the range information as well.
          * This range information is absolute address */
@@ -1248,7 +1640,11 @@ rme_ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
         ((struct RME_Cap_Kmem*)Cap_Dst_Struct)->End=Kmem_End-1;
     }
     else
+    {
+        RME_COVERAGE_MARKER();
+        
         RME_CAP_COPY(Cap_Dst_Struct,Cap_Src_Struct,Flags);
+    }
     
     /* Set the parent */
     Cap_Dst_Struct->Head.Parent=(rme_ptr_t)Cap_Src_Struct;
@@ -1257,11 +1653,17 @@ rme_ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
     /* Is it overflowed? */
     if(RME_CAP_REF(Type_Ref)>=RME_CAP_MAXREF)
     {
+        RME_COVERAGE_MARKER();
+            
         /* Refcnt overflowed(very unlikely to happen) */
         RME_FETCH_ADD(&(Cap_Src_Struct->Head.Type_Ref), -1);
         /* Clear the taken slot as well */
         RME_WRITE_RELEASE(&(Cap_Dst_Struct->Head.Type_Ref),0);
         return RME_ERR_CAP_REFCNT;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
     }
 
     /* Write in the correct information at last */
@@ -1324,8 +1726,8 @@ Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
               rme_cid_t Cap_Pgtbl - The capability slot that you want this newly created
                                     page table capability to be in. 1-Level.
               rme_ptr_t Vaddr - The virtual address to store the page table kernel object.
-              rme_ptr_t Start_Addr - The virtual address to start mapping for this page table.  
-                                     This address must be aligned to the total size of the table.
+              rme_ptr_t Base_Addr - The virtual address to start mapping for this page table.  
+                                    This address must be aligned to the total size of the table.
               rme_ptr_t Top_Flag - Whether this page table is the top-level. If it is, we will
                                    map all the kernel page directories into this one.
               rme_ptr_t Size_Order - The size order of the page table. The size refers to
@@ -1335,7 +1737,7 @@ Output      : None.
 Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
 rme_ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
-                              rme_cid_t Cap_Pgtbl, rme_ptr_t Vaddr, rme_ptr_t Start_Addr,
+                              rme_cid_t Cap_Pgtbl, rme_ptr_t Vaddr, rme_ptr_t Base_Addr,
                               rme_ptr_t Top_Flag, rme_ptr_t Size_Order, rme_ptr_t Num_Order)
 {
     struct RME_Cap_Captbl* Captbl_Op;
@@ -1345,7 +1747,15 @@ rme_ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captb
     /* Check if the total representable memory exceeds our maximum possible
      * addressible memory under the machine word length */
     if((Size_Order+Num_Order)>RME_POW2(RME_WORD_ORDER))
+    {
+        RME_COVERAGE_MARKER();
+        
         return RME_ERR_PGT_HW;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
 
     /* Get the cap location that we care about */
     RME_CAPTBL_GETCAP(Captbl,Cap_Captbl,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Op,Type_Ref);
@@ -1353,8 +1763,28 @@ rme_ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captb
     RME_CAP_CHECK(Captbl_Op,RME_CAPTBL_FLAG_CRT);
     
     /* Check if these parameters are feasible */
-    if(__RME_Pgtbl_Check(Start_Addr, Top_Flag, Size_Order, Num_Order, Vaddr)!=0)
+    if(__RME_Pgtbl_Check(Base_Addr, Top_Flag, Size_Order, Num_Order, Vaddr)!=0)
+    {
+        RME_COVERAGE_MARKER();
+        
         return RME_ERR_PGT_HW;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
+    
+    /* Check if the base address is properly aligned to the total order of the page table */
+    if((Base_Addr&RME_MASK_END(Size_Order+Num_Order-1))!=0)
+    {
+        RME_COVERAGE_MARKER();
+
+        return RME_ERR_PGT_HW;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
 
     /* Get the cap slot */
     RME_CAPTBL_GETSLOT(Captbl_Op,Cap_Pgtbl,struct RME_Cap_Pgtbl*,Pgtbl_Crt);
@@ -1363,19 +1793,35 @@ rme_ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captb
 
     /* Try to populate the area - Are we creating the top level? */
     if(Top_Flag!=0)
-    {  
+    {
+        RME_COVERAGE_MARKER();
+        
         if(_RME_Kotbl_Mark(Vaddr, RME_PGTBL_SIZE_TOP(Num_Order))!=0)
         {
+            RME_COVERAGE_MARKER();
+        
             RME_WRITE_RELEASE(&(Pgtbl_Crt->Head.Type_Ref),0);
             return RME_ERR_CAP_KOTBL;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
         }
     }
     else
     {
+        RME_COVERAGE_MARKER();
+        
         if(_RME_Kotbl_Mark(Vaddr, RME_PGTBL_SIZE_NOM(Num_Order))!=0)
         {
+            RME_COVERAGE_MARKER();
+        
             RME_WRITE_RELEASE(&(Pgtbl_Crt->Head.Type_Ref),0);
             return RME_ERR_CAP_KOTBL;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
         }
     }
     
@@ -1385,22 +1831,36 @@ rme_ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captb
     Pgtbl_Crt->Head.Flags=RME_PGTBL_FLAG_FULL_RANGE|
                           RME_PGTBL_FLAG_ADD_SRC|
                           RME_PGTBL_FLAG_PROC_CRT;
-    Pgtbl_Crt->Start_Addr=Start_Addr|Top_Flag;
+    Pgtbl_Crt->Base_Addr=Base_Addr|Top_Flag;
     /* These two variables are directly placed here. Checks will be done by the driver */
     Pgtbl_Crt->Size_Num_Order=RME_PGTBL_ORDER(Size_Order,Num_Order);
     /* We start initialization of the page table, and we also add all kernel pages
      * to them if they are top-level. If unsuccessful, we revert operations. */
     if(__RME_Pgtbl_Init(Pgtbl_Crt)!=0)
     {
+        RME_COVERAGE_MARKER();
+        
         /* This must be successful */
         if(Top_Flag!=0)
+        {
+            RME_COVERAGE_MARKER();
+        
             RME_ASSERT(_RME_Kotbl_Erase(Vaddr, RME_PGTBL_SIZE_TOP(Num_Order))==0);
+        }
         else
+        {
+            RME_COVERAGE_MARKER();
+        
             RME_ASSERT(_RME_Kotbl_Erase(Vaddr, RME_PGTBL_SIZE_NOM(Num_Order))==0);
+        }
         
         /* Unsuccessful. Revert operations */
         RME_WRITE_RELEASE(&(Pgtbl_Crt->Head.Type_Ref),0);
         return RME_ERR_PGT_HW;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
     }
 
     /* Creation complete */
@@ -1433,8 +1893,9 @@ rme_ret_t _RME_Pgtbl_Boot_Con(struct RME_Cap_Captbl* Captbl,
     /* The total size order of the child table */
     rme_ptr_t Child_Size_Ord;
 #if(RME_VA_EQU_PA==RME_TRUE)
-    /* The start mapping address in the parent */
+    /* The start and end mapping address in the parent */
     rme_ptr_t Parent_Map_Addr;
+    rme_ptr_t Parend_End_Addr;
 #endif
     
     /* Get the capability slots */
@@ -1446,29 +1907,80 @@ rme_ret_t _RME_Pgtbl_Boot_Con(struct RME_Cap_Captbl* Captbl,
     
     /* See if the mapping range is allowed */
     if((Pos>>RME_PGTBL_NUMORD(Pgtbl_Parent->Size_Num_Order))!=0)
+    {
+        RME_COVERAGE_MARKER();
+        
         return RME_ERR_PGT_ADDR;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     
     /* See if the child table falls within one slot of the parent table */
     Child_Size_Ord=RME_PGTBL_NUMORD(Pgtbl_Child->Size_Num_Order)+
                    RME_PGTBL_SIZEORD(Pgtbl_Child->Size_Num_Order);
     if(RME_PGTBL_SIZEORD(Pgtbl_Parent->Size_Num_Order)<Child_Size_Ord)
+    {
+        RME_COVERAGE_MARKER();
+        
         return RME_ERR_PGT_ADDR;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     
 #if(RME_VA_EQU_PA==RME_TRUE)
     /* Check if the virtual address mapping is correct */
     Parent_Map_Addr=(Pos<<RME_PGTBL_SIZEORD(Pgtbl_Parent->Size_Num_Order))+
-                    RME_PGTBL_START(Pgtbl_Parent->Start_Addr);
-    if(Pgtbl_Child->Start_Addr<Parent_Map_Addr)
+                    RME_PGTBL_START(Pgtbl_Parent->Base_Addr);
+    if(Pgtbl_Child->Base_Addr<Parent_Map_Addr)
+    {
+        RME_COVERAGE_MARKER();
+        
         return RME_ERR_PGT_ADDR;
-    if((Pgtbl_Child->Start_Addr+RME_POW2(Child_Size_Ord))>
-       (Parent_Map_Addr+RME_POW2(RME_PGTBL_SIZEORD(Pgtbl_Parent->Size_Num_Order))))
-        return RME_ERR_PGT_ADDR;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
+    
+    Parend_End_Addr=Parent_Map_Addr+RME_POW2(RME_PGTBL_SIZEORD(Pgtbl_Parent->Size_Num_Order));
+    
+    /* If this is zero, then we are sure that overflow won't happen because start
+     * address is always aligned to the total order of the child page table */
+    if(Parend_End_Addr!=0)
+    {
+        if((Pgtbl_Child->Base_Addr+RME_POW2(Child_Size_Ord))>Parend_End_Addr)
+        {
+            RME_COVERAGE_MARKER();
+
+            return RME_ERR_PGT_ADDR;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
 #endif
 
     /* Actually do the mapping - This work is passed down to the driver layer. 
      * Successful or not will be determined by the driver layer. */
     if(__RME_Pgtbl_Pgdir_Map(Pgtbl_Parent, Pos, Pgtbl_Child, Flags_Child)!=0)
+    {
+        RME_COVERAGE_MARKER();
+        
         return RME_ERR_PGT_MAP;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     
     return 0;
 }
@@ -1506,19 +2018,43 @@ rme_ret_t _RME_Pgtbl_Boot_Add(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Pgtbl
 
 #if(RME_VA_EQU_PA==RME_TRUE)
     /* Check if we force identical mapping */
-    if(Paddr!=((Pos<<RME_PGTBL_SIZEORD(Pgtbl_Op->Size_Num_Order))+RME_PGTBL_START(Pgtbl_Op->Start_Addr)))
-        return RME_ERR_PGT_ADDR; 
+    if(Paddr!=((Pos<<RME_PGTBL_SIZEORD(Pgtbl_Op->Size_Num_Order))+RME_PGTBL_START(Pgtbl_Op->Base_Addr)))
+    {
+        RME_COVERAGE_MARKER();
+        
+        return RME_ERR_PGT_ADDR;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
 #endif
 
     /* See if the mapping range and the granularity is allowed */
     if(((Pos>>RME_PGTBL_NUMORD(Pgtbl_Op->Size_Num_Order))!=0)||
        ((Paddr&RME_MASK_END(RME_PGTBL_SIZEORD(Pgtbl_Op->Size_Num_Order)-1))!=0))
+    {
+        RME_COVERAGE_MARKER();
+        
         return RME_ERR_PGT_ADDR;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
 
     /* Actually do the mapping - This work is passed down to the driver layer. 
      * Successful or not will be determined by the driver layer. */
     if(__RME_Pgtbl_Page_Map(Pgtbl_Op, Paddr, Pos, Flags)!=0)
+    {
+        RME_COVERAGE_MARKER();
+        
         return RME_ERR_PGT_MAP;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     
     return 0;
 }
@@ -1537,8 +2073,8 @@ Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
               rme_cid_t Cap_Pgtbl - The capability slot that you want this newly created
                                     page table capability to be in. 1-Level.
               rme_ptr_t Raddr - The relative virtual address to store the page table kernel object.
-              rme_ptr_t Start_Addr - The virtual address to start mapping for this page table.  
-                                     This address must be aligned to the total size of the table.
+              rme_ptr_t Base_Addr - The virtual address to start mapping for this page table.  
+                                    This address must be aligned to the total size of the table.
               rme_ptr_t Top_Flag - Whether this page table is the top-level. If it is, we will
                                    map all the kernel page directories into this one.
               rme_ptr_t Size_Order - The size order of the page table. The size refers to
@@ -1549,7 +2085,7 @@ Return      : rme_ret_t - If successful, 0; or an error code.
 ******************************************************************************/
 rme_ret_t _RME_Pgtbl_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
                          rme_cid_t Cap_Kmem, rme_cid_t Cap_Pgtbl, rme_ptr_t Raddr,
-                         rme_ptr_t Start_Addr, rme_ptr_t Top_Flag, rme_ptr_t Size_Order, rme_ptr_t Num_Order)
+                         rme_ptr_t Base_Addr, rme_ptr_t Top_Flag, rme_ptr_t Size_Order, rme_ptr_t Num_Order)
 {
     struct RME_Cap_Captbl* Captbl_Op;
     struct RME_Cap_Kmem* Kmem_Op;
@@ -1560,7 +2096,15 @@ rme_ret_t _RME_Pgtbl_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
     /* Check if the total representable memory exceeds our maximum possible
      * addressible memory under the machine word length */
     if((Size_Order+Num_Order)>RME_POW2(RME_WORD_ORDER))
+    {
+        RME_COVERAGE_MARKER();
+        
         return RME_ERR_PGT_HW;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     
     /* Get the cap location that we care about */
     RME_CAPTBL_GETCAP(Captbl,Cap_Captbl,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Op,Type_Ref);
@@ -1569,34 +2113,78 @@ rme_ret_t _RME_Pgtbl_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
     RME_CAP_CHECK(Captbl_Op,RME_CAPTBL_FLAG_CRT);
     /* See if the creation is valid for this kmem range */
     if(Top_Flag!=0)
+    {
+        RME_COVERAGE_MARKER();
+
         RME_KMEM_CHECK(Kmem_Op,RME_KMEM_FLAG_PGTBL,Raddr,Vaddr,RME_PGTBL_SIZE_TOP(Num_Order));
+    }
     else
+    {
+        RME_COVERAGE_MARKER();
+
         RME_KMEM_CHECK(Kmem_Op,RME_KMEM_FLAG_PGTBL,Raddr,Vaddr,RME_PGTBL_SIZE_NOM(Num_Order));
+    }
 
     /* Check if these parameters are feasible */
-    if(__RME_Pgtbl_Check(Start_Addr, Top_Flag, Size_Order, Num_Order, Vaddr)!=0)
-        return RME_ERR_PGT_HW;  
+    if(__RME_Pgtbl_Check(Base_Addr, Top_Flag, Size_Order, Num_Order, Vaddr)!=0)
+    {
+        RME_COVERAGE_MARKER();
+
+        return RME_ERR_PGT_HW;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
+
+    /* Check if the start address is properly aligned to the total order of the page table */
+    if((Base_Addr&RME_MASK_END(Size_Order+Num_Order-1))!=0)
+    {
+        RME_COVERAGE_MARKER();
+
+        return RME_ERR_PGT_HW;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
 
     /* Get the cap slot */
     RME_CAPTBL_GETSLOT(Captbl_Op,Cap_Pgtbl,struct RME_Cap_Pgtbl*,Pgtbl_Crt);
     /* Take the slot if possible */
     RME_CAPTBL_OCCUPY(Pgtbl_Crt,Type_Ref);
-    
+
     /* Try to populate the area - Are we creating the top level? */
     if(Top_Flag!=0)
-    {  
+    {
+        RME_COVERAGE_MARKER();
+
         if(_RME_Kotbl_Mark(Vaddr, RME_PGTBL_SIZE_TOP(Num_Order))!=0)
         {
+            RME_COVERAGE_MARKER();
+
             RME_WRITE_RELEASE(&(Pgtbl_Crt->Head.Type_Ref),0);
             return RME_ERR_CAP_KOTBL;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
         }
     }
     else
     {
+        RME_COVERAGE_MARKER();
+
         if(_RME_Kotbl_Mark(Vaddr, RME_PGTBL_SIZE_NOM(Num_Order))!=0)
         {
+            RME_COVERAGE_MARKER();
+
             RME_WRITE_RELEASE(&(Pgtbl_Crt->Head.Type_Ref),0);
             return RME_ERR_CAP_KOTBL;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
         }
     }
     
@@ -1606,22 +2194,36 @@ rme_ret_t _RME_Pgtbl_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
                           RME_PGTBL_FLAG_ADD_SRC|RME_PGTBL_FLAG_ADD_DST|RME_PGTBL_FLAG_REM|
                           RME_PGTBL_FLAG_CON_CHILD|RME_PGTBL_FLAG_CON_PARENT|RME_PGTBL_FLAG_DES|
                           RME_PGTBL_FLAG_PROC_CRT|RME_PGTBL_FLAG_PROC_PGT;
-    Pgtbl_Crt->Start_Addr=Start_Addr|Top_Flag;
+    Pgtbl_Crt->Base_Addr=Base_Addr|Top_Flag;
     /* These two variables are directly placed here. Checks will be done by the driver */
     Pgtbl_Crt->Size_Num_Order=RME_PGTBL_ORDER(Size_Order,Num_Order);
     /* We start initialization of the page table, and we also add all kernel pages
      * to them if they are top-level. If unsuccessful, we revert operations. */
     if(__RME_Pgtbl_Init(Pgtbl_Crt)!=0)
     {
+        RME_COVERAGE_MARKER();
+
         /* This must be successful */
         if(Top_Flag!=0)
+        {
+            RME_COVERAGE_MARKER();
+
             RME_ASSERT(_RME_Kotbl_Erase(Vaddr, RME_PGTBL_SIZE_TOP(Num_Order))==0);
+        }
         else
+        {
+            RME_COVERAGE_MARKER();
+
             RME_ASSERT(_RME_Kotbl_Erase(Vaddr, RME_PGTBL_SIZE_NOM(Num_Order))==0);
+        }
         
         /* Unsuccessful. Revert operations */
         RME_WRITE_RELEASE(&(Pgtbl_Crt->Head.Type_Ref),0);
         return RME_ERR_PGT_HW;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
     }
 
     /* Creation complete */
@@ -1672,16 +2274,30 @@ rme_ret_t _RME_Pgtbl_Del(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rm
      * by the user-level. */
     if(__RME_Pgtbl_Del_Check(Pgtbl_Del)!=0)
     {
+        RME_COVERAGE_MARKER();
+
         RME_CAP_DEFROST(Pgtbl_Del,Type_Ref);
         return RME_ERR_PGT_HW;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
     }
     
     /* Remember these two variables for deletion */
     Object=RME_CAP_GETOBJ(Pgtbl_Del,rme_ptr_t);
-    if(((Pgtbl_Del->Start_Addr)&RME_PGTBL_TOP)!=0)
+    if(((Pgtbl_Del->Base_Addr)&RME_PGTBL_TOP)!=0)
+    {
+        RME_COVERAGE_MARKER();
+
         Size=RME_PGTBL_SIZE_TOP(RME_PGTBL_NUMORD(Pgtbl_Del->Size_Num_Order));
+    }
     else
+    {
+        RME_COVERAGE_MARKER();
+
         Size=RME_PGTBL_SIZE_NOM(RME_PGTBL_NUMORD(Pgtbl_Del->Size_Num_Order));
+    }
     
     /* Now we can safely delete the cap */
     RME_CAP_REMDEL(Pgtbl_Del,Type_Ref);
@@ -1722,6 +2338,7 @@ rme_ret_t _RME_Pgtbl_Add(struct RME_Cap_Captbl* Captbl,
     rme_ptr_t Paddr_Src;
     rme_ptr_t Flags_Src;
     rme_ptr_t Type_Ref;
+    rme_ptr_t Src_Page_Size;
     
     /* Get the capability slots */
     RME_CAPTBL_GETCAP(Captbl,Cap_Pgtbl_Dst,RME_CAP_PGTBL,struct RME_Cap_Pgtbl*,Pgtbl_Dst,Type_Ref);
@@ -1734,42 +2351,116 @@ rme_ret_t _RME_Pgtbl_Add(struct RME_Cap_Captbl* Captbl,
        (Pos_Dst<RME_PGTBL_FLAG_LOW(Pgtbl_Dst->Head.Flags))||
        (Pos_Src>RME_PGTBL_FLAG_HIGH(Pgtbl_Src->Head.Flags))||
        (Pos_Src<RME_PGTBL_FLAG_LOW(Pgtbl_Src->Head.Flags)))
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_CAP_FLAG;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
             
     /* See if the size order relationship is correct */
     if(RME_PGTBL_SIZEORD(Pgtbl_Dst->Size_Num_Order)>RME_PGTBL_SIZEORD(Pgtbl_Src->Size_Num_Order))
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_PGT_ADDR;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
+    
     /* See if the position indices are out of range */
     if(((Pos_Dst>>RME_PGTBL_NUMORD(Pgtbl_Dst->Size_Num_Order))!=0)||
        ((Pos_Src>>RME_PGTBL_NUMORD(Pgtbl_Src->Size_Num_Order))!=0))
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_PGT_ADDR;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
+    
     /* See if the source subposition index is out of range */
-    if(RME_POW2(RME_PGTBL_SIZEORD(Pgtbl_Src->Size_Num_Order))<=
-       (Index<<RME_PGTBL_SIZEORD(Pgtbl_Dst->Size_Num_Order)))
-        return RME_ERR_PGT_ADDR;
+    Src_Page_Size=RME_POW2(RME_PGTBL_SIZEORD(Pgtbl_Src->Size_Num_Order));
+    if(Src_Page_Size!=0)
+    {
+        if(Src_Page_Size<=(Index<<RME_PGTBL_SIZEORD(Pgtbl_Dst->Size_Num_Order)))
+        {
+            RME_COVERAGE_MARKER();
+
+            return RME_ERR_PGT_ADDR;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
+
     /* Get the physical address and RME standard flags of that source page */
     if(__RME_Pgtbl_Lookup(Pgtbl_Src, Pos_Src, &Paddr_Src, &Flags_Src)!=0)
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_PGT_HW;
-    
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
+
     /* Calculate the destination physical address */
     Paddr_Dst=Paddr_Src+(Index<<RME_PGTBL_SIZEORD(Pgtbl_Dst->Size_Num_Order));
 #if(RME_VA_EQU_PA==RME_TRUE)
     /* Check if we force identical mapping. No need to check granularity here */
     if(Paddr_Dst!=((Pos_Dst<<RME_PGTBL_SIZEORD(Pgtbl_Dst->Size_Num_Order))+
-                   RME_PGTBL_START(Pgtbl_Dst->Start_Addr)))
+                   RME_PGTBL_START(Pgtbl_Dst->Base_Addr)))
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_PGT_ADDR;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
 #endif
     /* Analyze the flags - we do not allow expansion of access permissions */
     if(((Flags_Dst)&(~Flags_Src))!=0)
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_PGT_PERM;
-    
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
+
     /* Actually do the mapping - This work is passed down to the driver layer. 
      * Successful or not will be determined by the driver layer. Under a multi-core
      * environment, the driver layer need to determine whether two cores are modifying
      * a same page, and do corresponding CAS if such operations are to be avoided. */
     if(__RME_Pgtbl_Page_Map(Pgtbl_Dst, Paddr_Dst, Pos_Dst, Flags_Dst)!=0)
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_PGT_MAP;
-    
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
+
     return 0;
 }
 /* End Function:_RME_Pgtbl_Add ***********************************************/
@@ -1794,18 +2485,42 @@ rme_ret_t _RME_Pgtbl_Rem(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Pgtbl, rme
     /* Check the operation range - This is page table specific */
     if((Pos>RME_PGTBL_FLAG_HIGH(Pgtbl_Rem->Head.Flags))||
        (Pos<RME_PGTBL_FLAG_LOW(Pgtbl_Rem->Head.Flags)))
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_CAP_FLAG;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
 
     /* See if the unmapping range is allowed */
     if((Pos>>RME_PGTBL_NUMORD(Pgtbl_Rem->Size_Num_Order))!=0)
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_PGT_ADDR;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     
     /* Actually do the unmapping - This work is passed down to the driver layer.
      * Successful or not will be determined by the driver layer. In the multi-core
      * environment, this should be taken care of by the driver to make sure hazard will
      * not happen by using the CAS. */
     if(__RME_Pgtbl_Page_Unmap(Pgtbl_Rem, Pos)!=0)
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_PGT_MAP;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     
     return 0;
 }
@@ -1832,8 +2547,9 @@ rme_ret_t _RME_Pgtbl_Con(struct RME_Cap_Captbl* Captbl,
     /* The total size order of the child table */
     rme_ptr_t Child_Size_Ord;
 #if(RME_VA_EQU_PA==RME_TRUE)
-    /* The start mapping address in the parent */
+    /* The start and end mapping address in the parent */
     rme_ptr_t Parent_Map_Addr;
+    rme_ptr_t Parend_End_Addr;
 #endif
     rme_ptr_t Type_Ref;
     
@@ -1846,11 +2562,27 @@ rme_ret_t _RME_Pgtbl_Con(struct RME_Cap_Captbl* Captbl,
     /* Check the operation range - This is page table specific */
     if((Pos>RME_PGTBL_FLAG_HIGH(Pgtbl_Parent->Head.Flags))||
        (Pos<RME_PGTBL_FLAG_LOW(Pgtbl_Parent->Head.Flags)))
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_CAP_FLAG;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     
     /* See if the mapping range is allowed */
     if((Pos>>RME_PGTBL_NUMORD(Pgtbl_Parent->Size_Num_Order))!=0)
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_PGT_ADDR;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     
     /* See if the child table falls within one slot of the parent table */
     Child_Size_Ord=RME_PGTBL_NUMORD(Pgtbl_Child->Size_Num_Order)+
@@ -1859,24 +2591,76 @@ rme_ret_t _RME_Pgtbl_Con(struct RME_Cap_Captbl* Captbl,
 #if(RME_VA_EQU_PA==RME_TRUE)
     /* Path-compression option available */
     if(RME_PGTBL_SIZEORD(Pgtbl_Parent->Size_Num_Order)<Child_Size_Ord)
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_PGT_ADDR;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
+    
     /* Check if the virtual address mapping is correct */
     Parent_Map_Addr=(Pos<<RME_PGTBL_SIZEORD(Pgtbl_Parent->Size_Num_Order))+
-                    RME_PGTBL_START(Pgtbl_Parent->Start_Addr);
-    if(Pgtbl_Child->Start_Addr<Parent_Map_Addr)
+                    RME_PGTBL_START(Pgtbl_Parent->Base_Addr);
+    if(Pgtbl_Child->Base_Addr<Parent_Map_Addr)
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_PGT_ADDR;
-    if((Pgtbl_Child->Start_Addr+RME_POW2(Child_Size_Ord))>
-       (Parent_Map_Addr+RME_POW2(RME_PGTBL_SIZEORD(Pgtbl_Parent->Size_Num_Order))))
-        return RME_ERR_PGT_ADDR;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
+    
+    Parend_End_Addr=Parent_Map_Addr+RME_POW2(RME_PGTBL_SIZEORD(Pgtbl_Parent->Size_Num_Order));
+    
+    /* If this is zero, then we are sure that overflow won't happen because start
+     * address is always aligned to the total order of the child page table */
+    if(Parend_End_Addr!=0)
+    {
+        if((Pgtbl_Child->Base_Addr+RME_POW2(Child_Size_Ord))>Parend_End_Addr)
+        {
+            RME_COVERAGE_MARKER();
+
+            return RME_ERR_PGT_ADDR;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
 #else
     /* If this is the case, then we force no path compression */
     if(RME_PGTBL_SIZEORD(Pgtbl_Parent->Size_Num_Order)!=Child_Size_Ord)
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_PGT_ADDR;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
 #endif
     /* Actually do the mapping - This work is passed down to the driver layer. 
      * Successful or not will be determined by the driver layer. */
     if(__RME_Pgtbl_Pgdir_Map(Pgtbl_Parent, Pos, Pgtbl_Child, Flags_Child)!=0)
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_PGT_MAP;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     
     return 0;
 }
@@ -1904,16 +2688,40 @@ rme_ret_t _RME_Pgtbl_Des(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Pgtbl, rme
     /* Check the operation range - This is page table specific */
     if((Pos>RME_PGTBL_FLAG_HIGH(Pgtbl_Des->Head.Flags))||
        (Pos<RME_PGTBL_FLAG_LOW(Pgtbl_Des->Head.Flags)))
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_CAP_FLAG;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
 
     /* See if the unmapping range is allowed */
     if((Pos>>RME_PGTBL_NUMORD(Pgtbl_Des->Size_Num_Order))!=0)
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_PGT_ADDR;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     
     /* Actually do the unmapping - This work is passed down to the driver layer.
      * Successful or not will be determined by the driver layer. */
     if(__RME_Pgtbl_Pgdir_Unmap(Pgtbl_Des, Pos)!=0)
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_PGT_MAP;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     
     return 0;
 }
@@ -1923,14 +2731,23 @@ rme_ret_t _RME_Pgtbl_Des(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Pgtbl, rme
 Description : Initialize the kernel object table according to the size of the table.
 Input       : rme_ptr_t Words - the number of words in the table.
 Output      : None.
-Return      : rme_ret_t - Always 0.
+Return      : rme_ret_t - If the number of words are is not sufficient to hold all
+                          kernel memory, -1; else 0.
 ******************************************************************************/
 rme_ret_t _RME_Kotbl_Init(rme_ptr_t Words)
 {
     rme_ptr_t Count;
     
     if(Words<RME_KOTBL_WORD_NUM)
+    {
+        RME_COVERAGE_MARKER();
+
         return -1;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     
     /* Avoid compiler warning about unused variable */
     RME_Kotbl[0]=0;
@@ -1952,6 +2769,7 @@ Return      : rme_ret_t - If the operation is successful, it will return 0; else
 ******************************************************************************/
 rme_ret_t _RME_Kotbl_Mark(rme_ptr_t Kaddr, rme_ptr_t Size)
 {
+    rme_ptr_t Count;
     /* The old value */
     rme_ptr_t Old_Val;
     /* Whether we need to undo our operations because of CAS failure */
@@ -1964,11 +2782,19 @@ rme_ret_t _RME_Kotbl_Mark(rme_ptr_t Kaddr, rme_ptr_t Size)
     rme_ptr_t Start_Mask;
     /* The mask at the end word */
     rme_ptr_t End_Mask;
-    rme_ptr_t Count;
 
     /* Check if the marking is well aligned */
     if((Kaddr&RME_MASK_END(RME_KMEM_SLOT_ORDER-1))!=0)
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_KOT_BMP;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
+    
     /* Check if the marking is within range - unnecessary due to the kmem cap range limits */
     /* if((Kaddr<RME_KMEM_VA_START)||((Kaddr+Size)>(RME_KMEM_VA_START+RME_KMEM_SIZE)))
         return RME_ERR_KOT_BMP; */
@@ -1985,58 +2811,130 @@ rme_ret_t _RME_Kotbl_Mark(rme_ptr_t Kaddr, rme_ptr_t Size)
     /* See if the start and end are in the same word */
     if(Start==End)
     {
+        RME_COVERAGE_MARKER();
+        
         /* Someone already populated something here */
         Old_Val=RME_KOTBL[Start];
         if((Old_Val&(Start_Mask&End_Mask))!=0)
+        {
+            RME_COVERAGE_MARKER();
+
             return RME_ERR_KOT_BMP;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
+        
         /* Check done, do the marking with CAS */
         if(RME_COMP_SWAP(&RME_KOTBL[Start],Old_Val,Old_Val|(Start_Mask&End_Mask))==0)
+        {
+            RME_COVERAGE_MARKER();
+
             return RME_ERR_KOT_BMP;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
     }
     else
     {
+        RME_COVERAGE_MARKER();
+        
         Undo=0;
         /* Check&Mark the start */
         Old_Val=RME_KOTBL[Start];
         if((Old_Val&Start_Mask)!=0)
+        {
+            RME_COVERAGE_MARKER();
+
             return RME_ERR_KOT_BMP;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
+        
         if(RME_COMP_SWAP(&RME_KOTBL[Start],Old_Val,Old_Val|Start_Mask)==0)
+        {
+            RME_COVERAGE_MARKER();
+
             return RME_ERR_KOT_BMP;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
+        
         /* Check&Mark the middle */
         for(Count=Start+1;Count<End;Count++)
         {
             Old_Val=RME_KOTBL[Count];
             if(Old_Val!=0)
             {
+                RME_COVERAGE_MARKER();
+
                 Undo=1;
                 break;
             }
             else
             {
+                RME_COVERAGE_MARKER();
+                
                 if(RME_COMP_SWAP(&RME_KOTBL[Count],Old_Val,RME_ALLBITS)==0)
                 {
+                    RME_COVERAGE_MARKER();
+                    
                     Undo=1;
                     break;
                 }
+                else
+                {
+                    RME_COVERAGE_MARKER();
+                }
             }
         }
+        
         /* See if the middle part failed. If yes, we skip the end marking */
         if(Undo==0)
         {
+            RME_COVERAGE_MARKER();
+
             /* Check&Mark the end */
             Old_Val=RME_KOTBL[End];
             if((Old_Val&End_Mask)!=0)
+            {
+                RME_COVERAGE_MARKER();
+
                 Undo=1;
+            }
             else
             {
+                RME_COVERAGE_MARKER();
+
                 if(RME_COMP_SWAP(&RME_KOTBL[End],Old_Val,Old_Val|End_Mask)==0)
+                {
+                    RME_COVERAGE_MARKER();
+
                     Undo=1;
+                }
+                else
+                {
+                    RME_COVERAGE_MARKER();
+                }
             }
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
         }
         
         /* See if we need to undo. If yes, proceed to unroll and return error */
         if(Undo!=0)
         {
+            RME_COVERAGE_MARKER();
+
             /* Undo the middle part - we do not need CAS here, because write back is always atomic */
             for(Count--;Count>Start;Count--)
                 RME_KOTBL[Count]=0;
@@ -2044,6 +2942,10 @@ rme_ret_t _RME_Kotbl_Mark(rme_ptr_t Kaddr, rme_ptr_t Size)
             RME_FETCH_AND(&(RME_KOTBL[Start]),~Start_Mask);
             /* Return failure */
             return RME_ERR_KOT_BMP;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
         }
     }
     
@@ -2073,7 +2975,15 @@ rme_ret_t _RME_Kotbl_Erase(rme_ptr_t Kaddr, rme_ptr_t Size)
 
     /* Check if the marking is well aligned */
     if((Kaddr&RME_MASK_END(RME_KMEM_SLOT_ORDER-1))!=0)
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_KOT_BMP;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     
     /* Check if the marking is within range - unnecessary due to the kmem cap range limits */
     /* if((Kaddr<RME_KMEM_VA_START)||((Kaddr+Size)>(RME_KMEM_VA_START+RME_KMEM_SIZE)))
@@ -2091,26 +3001,65 @@ rme_ret_t _RME_Kotbl_Erase(rme_ptr_t Kaddr, rme_ptr_t Size)
     /* See if the start and end are in the same word */
     if(Start==End)
     {
+        RME_COVERAGE_MARKER();
+
         /* This address range is not fully populated */
         if((RME_KOTBL[Start]&(Start_Mask&End_Mask))!=(Start_Mask&End_Mask))
+        {
+            RME_COVERAGE_MARKER();
+
             return RME_ERR_KOT_BMP;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
+
         /* Check done, do the unmarking - need atomic operations */
         RME_FETCH_AND(&(RME_KOTBL[Start]),~(Start_Mask&End_Mask));
     }
     else
     {
+        RME_COVERAGE_MARKER();
+
         /* Check the start */
         if((RME_KOTBL[Start]&Start_Mask)!=Start_Mask)
+        {
+            RME_COVERAGE_MARKER();
+
             return RME_ERR_KOT_BMP;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
+        
         /* Check the middle */
         for(Count=Start+1;Count<End-1;Count++)
         {
             if(RME_KOTBL[Count]!=RME_ALLBITS)
+            {
+                RME_COVERAGE_MARKER();
+
                 return RME_ERR_KOT_BMP;
+            }
+            else
+            {
+                RME_COVERAGE_MARKER();
+            }
         }
+
         /* Check the end */
         if((RME_KOTBL[End]&End_Mask)!=End_Mask)
+        {
+            RME_COVERAGE_MARKER();
+
             return RME_ERR_KOT_BMP;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
         
         /* Erase the start - make it atomic */
         RME_FETCH_AND(&(RME_KOTBL[Start]),~Start_Mask);
@@ -2200,7 +3149,7 @@ void _RME_CPU_Local_Init(struct RME_CPU_Local* CPU_Local, rme_ptr_t CPUID)
     
     CPU_Local->CPUID=CPUID;
     CPU_Local->Cur_Thd=0;
-    CPU_Local->Int_Sig=0;
+    CPU_Local->Vect_Sig=0;
     CPU_Local->Tick_Sig=0;
     
     /* Initialize the run-queue and bitmap */
@@ -2276,28 +3225,37 @@ Description : The fatal fault handler of RME. This handler will be called by the
               that all these exceptions be dropped rather than handled; or there will be
               integrity and availability compromises.
 Input       : struct RME_Reg_Struct* Reg - The register set when entering the handler.
+              rme_ptr_t Fault - The reason of this fault.
 Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler.
 Return      : rme_ret_t - Always 0.
 ******************************************************************************/
-rme_ret_t __RME_Thd_Fatal(struct RME_Reg_Struct* Reg)
+rme_ret_t __RME_Thd_Fatal(struct RME_Reg_Struct* Reg, rme_ptr_t Fault)
 {
     struct RME_CPU_Local* CPU_Local;
     
     /* Attempt to return from the invocation, from fault */
     if(_RME_Inv_Ret(Reg, 0, 1)!=0)
     {
+        RME_COVERAGE_MARKER();
+
         /* Return failure, we are not in an invocation. Killing the thread now */
         CPU_Local=RME_CPU_LOCAL();
         /* Are we attempting to kill the init threads? If yes, panic */
         RME_ASSERT((CPU_Local->Cur_Thd)->Sched.Slices!=RME_THD_INIT_TIME);
         /* Deprive it of all its timeslices */
         (CPU_Local->Cur_Thd)->Sched.Slices=0;
+        /* Set the fault flag and reason of the fault */
         (CPU_Local->Cur_Thd)->Sched.State=RME_THD_FAULT;
+        (CPU_Local->Cur_Thd)->Sched.Fault=Fault;
         _RME_Run_Del(CPU_Local->Cur_Thd);
         /* Send a scheduler notification to its parent */
-        _RME_Run_Notif(Reg,CPU_Local->Cur_Thd);
+        _RME_Run_Notif(CPU_Local->Cur_Thd);
     	/* All kernel send complete, now pick the highest priority thread to run */
     	_RME_Kern_High(Reg,CPU_Local);
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
     }
         
     return 0;
@@ -2352,9 +3310,17 @@ rme_ret_t _RME_Run_Del(struct RME_Thd_Struct* Thd)
     __RME_List_Del(Thd->Sched.Run.Prev,Thd->Sched.Run.Next);
     /* __RME_List_Crt(&(Thd->Sched.Run)); */
     
-    /* See if there are any thread on this peiority level. If no, clear the bit */
+    /* See if there are any thread on this priority level. If no, clear the bit */
     if((CPU_Local->Run).List[Prio].Next==&((CPU_Local->Run).List[Prio]))
+    {
+        RME_COVERAGE_MARKER();
+
         (CPU_Local->Run).Bitmap[Prio>>RME_WORD_ORDER]&=~(RME_POW2(Prio&RME_MASK_END(RME_WORD_ORDER-1)));
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     
     return 0;
 }
@@ -2375,7 +3341,15 @@ struct RME_Thd_Struct* _RME_Run_High(struct RME_CPU_Local* CPU_Local)
     for(Count=RME_PRIO_WORD_NUM-1;Count>=0;Count--)
     {
         if((CPU_Local->Run).Bitmap[Count]!=0)
+        {
+            RME_COVERAGE_MARKER();
+
             break;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
     }
     /* It must be possible to find one thread per core */
     RME_ASSERT(Count>=0);
@@ -2390,24 +3364,39 @@ struct RME_Thd_Struct* _RME_Run_High(struct RME_CPU_Local* CPU_Local)
 /* Begin Function:_RME_Run_Notif **********************************************
 Description : Send a notification to the thread's parent, to notify that this 
               thread is currently out of time, or have a fault.
-Input       : struct RME_Reg_Struct* Reg - The current register set.
-              struct RME_Thd_Struct* Thd - The thread to send notification for.
+              This function includes kernel send, so we need to call _RME_Kern_High
+              after this. The only exception being the _RME_Thd_Swt system call, in
+              which we use a more optimized routine.
+Input       : struct RME_Thd_Struct* Thd - The thread to send notification for.
 Output      : None.
 Return      : rme_ret_t - Always 0.
 ******************************************************************************/
-rme_ret_t _RME_Run_Notif(struct RME_Reg_Struct* Reg, struct RME_Thd_Struct* Thd)
+rme_ret_t _RME_Run_Notif(struct RME_Thd_Struct* Thd)
 {
     /* See if there is already a notification. If yes, do not do the send again */
     if(Thd->Sched.Notif.Next==&(Thd->Sched.Notif))
     {
+        RME_COVERAGE_MARKER();
+
         __RME_List_Ins(&(Thd->Sched.Notif),
                        Thd->Sched.Parent->Sched.Event.Prev,
                        &(Thd->Sched.Parent->Sched.Event));
     }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
 
     /* If this guy have an endpoint, send to it */
     if(Thd->Sched.Sched_Sig!=0)
-    	_RME_Kern_Snd(Reg,Thd->Sched.Sched_Sig);
+    {
+        RME_COVERAGE_MARKER();
+    	_RME_Kern_Snd(Thd->Sched.Sched_Sig);
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
 
     return 0;
 }
@@ -2442,17 +3431,41 @@ rme_ret_t _RME_Run_Swt(struct RME_Reg_Struct* Reg,
     Next_Inv_Top=RME_INVSTK_TOP(Next_Thd);
     
     if(Curr_Inv_Top==0)
+    {
+        RME_COVERAGE_MARKER();
+
         Curr_Pgtbl=Curr_Thd->Sched.Proc->Pgtbl;
+    }
     else
+    {
+        RME_COVERAGE_MARKER();
+
         Curr_Pgtbl=Curr_Inv_Top->Proc->Pgtbl;
+    }
     
     if(Next_Inv_Top==0)
+    {
+        RME_COVERAGE_MARKER();
+
         Next_Pgtbl=Next_Thd->Sched.Proc->Pgtbl;
+    }
     else
+    {
+        RME_COVERAGE_MARKER();
+
         Next_Pgtbl=Next_Inv_Top->Proc->Pgtbl;
+    }
     
     if(RME_CAP_GETOBJ(Curr_Pgtbl,rme_ptr_t)!=RME_CAP_GETOBJ(Next_Pgtbl,rme_ptr_t))
+    {
+        RME_COVERAGE_MARKER();
+
         __RME_Pgtbl_Set(RME_CAP_GETOBJ(Next_Pgtbl,rme_ptr_t));
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     
     return 0;
 }
@@ -2502,8 +3515,14 @@ rme_ret_t _RME_Proc_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl
     /* Try to populate the area */
     if(_RME_Kotbl_Mark(Vaddr, RME_PROC_SIZE)!=0)
     {
+        RME_COVERAGE_MARKER();
+
         RME_WRITE_RELEASE(&(Proc_Crt->Head.Type_Ref),0);
         return RME_ERR_CAP_KOTBL;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
     }
     
     Proc_Crt->Head.Parent=0;
@@ -2519,10 +3538,16 @@ rme_ret_t _RME_Proc_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl
     Type_Ref=RME_FETCH_ADD(&(Captbl_Op->Head.Type_Ref), 1);
     if(RME_CAP_REF(Type_Ref)>=RME_CAP_MAXREF)
     {
+        RME_COVERAGE_MARKER();
+
         RME_FETCH_ADD(&(Captbl_Op->Head.Type_Ref), -1);
         RME_ASSERT(_RME_Kotbl_Erase(Vaddr, RME_PROC_SIZE)==0);
         RME_WRITE_RELEASE(&(Proc_Crt->Head.Type_Ref),0);
         return RME_ERR_CAP_REFCNT;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
     }
     
     /* Set the page table, reference it and check for overflow */
@@ -2530,11 +3555,17 @@ rme_ret_t _RME_Proc_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl
     Type_Ref=RME_FETCH_ADD(&(Pgtbl_Op->Head.Type_Ref), 1);
     if(RME_CAP_REF(Type_Ref)>=RME_CAP_MAXREF)
     {
+        RME_COVERAGE_MARKER();
+
         RME_FETCH_ADD(&(Captbl_Op->Head.Type_Ref), -1);
         RME_FETCH_ADD(&(Pgtbl_Op->Head.Type_Ref), -1);
         RME_ASSERT(_RME_Kotbl_Erase(Vaddr, RME_PROC_SIZE)==0);
         RME_WRITE_RELEASE(&(Proc_Crt->Head.Type_Ref),0);
         return RME_ERR_CAP_REFCNT;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
     }
     
     /* Creation complete */
@@ -2592,10 +3623,16 @@ rme_ret_t _RME_Proc_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Crt,
     /* Try to populate the area */
     if(_RME_Kotbl_Mark(Vaddr, RME_PROC_SIZE)!=0)
     {
+        RME_COVERAGE_MARKER();
+
         RME_WRITE_RELEASE(&(Proc_Crt->Head.Type_Ref),0);
         return RME_ERR_CAP_KOTBL;
     }
-    
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
+
     Proc_Crt->Head.Parent=0;
     Proc_Crt->Head.Object=Vaddr;
     Proc_Crt->Head.Flags=RME_PROC_FLAG_INV|RME_PROC_FLAG_THD|
@@ -2608,10 +3645,16 @@ rme_ret_t _RME_Proc_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Crt,
     Type_Ref=RME_FETCH_ADD(&(Captbl_Op->Head.Type_Ref), 1);
     if(RME_CAP_REF(Type_Ref)>=RME_CAP_MAXREF)
     {
+        RME_COVERAGE_MARKER();
+
         RME_FETCH_ADD(&(Captbl_Op->Head.Type_Ref), -1);
         RME_ASSERT(_RME_Kotbl_Erase(Vaddr, RME_PROC_SIZE)==0);
         RME_WRITE_RELEASE(&(Proc_Crt->Head.Type_Ref),0);
         return RME_ERR_CAP_REFCNT;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
     }
     
     /* Set the page table, reference it and check for overflow */
@@ -2619,11 +3662,17 @@ rme_ret_t _RME_Proc_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Crt,
     Type_Ref=RME_FETCH_ADD(&(Pgtbl_Op->Head.Type_Ref), 1);
     if(RME_CAP_REF(Type_Ref)>=RME_CAP_MAXREF)
     {
+        RME_COVERAGE_MARKER();
+
         RME_FETCH_ADD(&(Captbl_Op->Head.Type_Ref), -1);
         RME_FETCH_ADD(&(Pgtbl_Op->Head.Type_Ref), -1);
         RME_ASSERT(_RME_Kotbl_Erase(Vaddr, RME_PROC_SIZE)==0);
         RME_WRITE_RELEASE(&(Proc_Crt->Head.Type_Ref),0);
         return RME_ERR_CAP_REFCNT;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
     }
     
     /* Creation complete */
@@ -2664,11 +3713,17 @@ rme_ret_t _RME_Proc_Del(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rme
     
     /* See if the object is referenced by another thread or invocation kernel
      * object. If yes, cannot delete */
-     if(Object->Refcnt!=0)
-     {
-         RME_CAP_DEFROST(Proc_Del,Type_Ref);
-         return RME_ERR_PTH_REFCNT;
-     }
+    if(Object->Refcnt!=0)
+    {
+        RME_COVERAGE_MARKER();
+
+        RME_CAP_DEFROST(Proc_Del,Type_Ref);
+        return RME_ERR_PTH_REFCNT;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     
     /* Now we can safely delete the cap */
     RME_CAP_REMDEL(Proc_Del,Type_Ref);
@@ -2713,8 +3768,14 @@ rme_ret_t _RME_Proc_Cpt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Proc, rme_c
     Type_Ref=RME_FETCH_ADD(&(Captbl_New->Head.Type_Ref), 1);
     if(RME_CAP_REF(Type_Ref)>=RME_CAP_MAXREF)
     {
+        RME_COVERAGE_MARKER();
+
         RME_FETCH_ADD(&(Captbl_New->Head.Type_Ref), -1);
         return RME_ERR_CAP_REFCNT;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
     }
     
     /* Read the old captbl, and do CAS here. If we fail, revert the refcnt */
@@ -2722,12 +3783,19 @@ rme_ret_t _RME_Proc_Cpt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Proc, rme_c
     Captbl_Old=Proc_Struct->Captbl;
     /* Actually commit the change */
     if(RME_COMP_SWAP((rme_ptr_t*)(&(Proc_Struct->Captbl)),
-                       (rme_ptr_t)Captbl_Old,
-                       (rme_ptr_t)Captbl_New)==0)
+                     (rme_ptr_t)Captbl_Old,
+                     (rme_ptr_t)Captbl_New)==0)
     {
+        RME_COVERAGE_MARKER();
+
         RME_FETCH_ADD(&(Captbl_New->Head.Type_Ref), -1);
         return RME_ERR_PTH_CONFLICT;
     }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
+    
     /* Release the old table */
     RME_FETCH_ADD(&(Captbl_Old->Head.Type_Ref), -1);
     
@@ -2764,8 +3832,14 @@ rme_ret_t _RME_Proc_Pgt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Proc, rme_c
     Type_Ref=RME_FETCH_ADD(&(Pgtbl_New->Head.Type_Ref), 1);
     if(RME_CAP_REF(Type_Ref)>=RME_CAP_MAXREF)
     {
+        RME_COVERAGE_MARKER();
+
         RME_FETCH_ADD(&(Pgtbl_New->Head.Type_Ref), -1);
         return RME_ERR_CAP_REFCNT;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
     }
     
     /* Read the old captbl, and do CAS here. If we fail, revert the refcnt */
@@ -2776,9 +3850,16 @@ rme_ret_t _RME_Proc_Pgt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Proc, rme_c
                        (rme_ptr_t)Pgtbl_Old,
                        (rme_ptr_t)Pgtbl_New)==0)
     {
+        RME_COVERAGE_MARKER();
+
         RME_FETCH_ADD(&(Pgtbl_New->Head.Type_Ref), -1);
         return RME_ERR_PTH_CONFLICT;
     }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
+    
     /* Release the old table */
     RME_FETCH_ADD(&(Pgtbl_Old->Head.Type_Ref), -1);
     
@@ -2819,7 +3900,15 @@ rme_ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
     
     /* Check whether the priority level is allowed */
     if(Prio>=RME_MAX_PREEMPT_PRIO)
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_PTH_PRIO;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     
     /* Get the capability slots */
     RME_CAPTBL_GETCAP(Captbl,Cap_Captbl,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Op,Type_Ref); 
@@ -2836,8 +3925,14 @@ rme_ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
     /* Try to populate the area */
     if(_RME_Kotbl_Mark(Vaddr, RME_THD_SIZE)!=0)
     {
+        RME_COVERAGE_MARKER();
+
         RME_WRITE_RELEASE(&(Thd_Crt->Head.Type_Ref),0);
         return RME_ERR_CAP_KOTBL;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
     }
     
     /* Get the thread, and start creation */
@@ -2918,7 +4013,15 @@ rme_ret_t _RME_Thd_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rme_
     /* See if the maximum priority relationship is correct - a thread can never create
      * a thread with higher maximum priority */
     if((RME_CPU_LOCAL()->Cur_Thd)->Sched.Max_Prio<Max_Prio)
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_PTH_PRIO;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
 
     /* Get the capability slots */
     RME_CAPTBL_GETCAP(Captbl,Cap_Captbl,RME_CAP_CAPTBL,struct RME_Cap_Captbl*,Captbl_Op,Type_Ref); 
@@ -2938,8 +4041,14 @@ rme_ret_t _RME_Thd_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rme_
     /* Try to populate the area */
     if(_RME_Kotbl_Mark(Vaddr, RME_THD_SIZE)!=0)
     {
+        RME_COVERAGE_MARKER();
+
         RME_WRITE_RELEASE(&(Thd_Crt->Head.Type_Ref),0);
         return RME_ERR_CAP_KOTBL;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
     }
 
     /* Get the thread, and start creation */
@@ -3016,8 +4125,14 @@ rme_ret_t _RME_Thd_Del(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rme_
     /* See if the thread is unbinded. If not, we cannot proceed to deletion */
     if(Thd_Struct->Sched.CPU_Local!=RME_THD_UNBINDED)
     {
+        RME_COVERAGE_MARKER();
+
         RME_CAP_DEFROST(Thd_Del,Type_Ref);
         return RME_ERR_PTH_INVSTATE;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
     }
     
     /* Now we can safely delete the cap */
@@ -3071,18 +4186,40 @@ rme_ret_t _RME_Thd_Exec_Set(struct RME_Cap_Captbl* Captbl,
     /* See if the target thread is already binded. If no or incorrect, we just quit */
     Thd_Struct=RME_CAP_GETOBJ(Thd_Op,struct RME_Thd_Struct*);
     if(Thd_Struct->Sched.CPU_Local!=RME_CPU_LOCAL())
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_PTH_INVSTATE;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     
     /* See if there is a fault pending. If yes, we clear it */
     if(Thd_Struct->Sched.State==RME_THD_FAULT)
+    {
+        RME_COVERAGE_MARKER();
+
         Thd_Struct->Sched.State=RME_THD_TIMEOUT;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     
     /* Commit the change if both values are non-zero. If both are zero we are just
      * clearing the error flag and continue execution from where it faulted */
     if((Entry!=0)&&(Stack!=0))
     {
+        RME_COVERAGE_MARKER();
+
         __RME_Thd_Reg_Init(Entry, Stack, Param, &(Thd_Struct->Cur_Reg->Reg));
         __RME_Thd_Cop_Init(&(Thd_Struct->Cur_Reg->Reg), &(Thd_Struct->Cur_Reg->Cop_Reg));
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
     }
     
     return 0;
@@ -3113,19 +4250,41 @@ rme_ret_t _RME_Thd_Hyp_Set(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Thd, rme
     /* See if the target thread is already binded. If no or incorrect, we just quit */
     Thd_Struct=RME_CAP_GETOBJ(Thd_Op,struct RME_Thd_Struct*);
     if(Thd_Struct->Sched.CPU_Local!=RME_CPU_LOCAL())
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_PTH_INVSTATE;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     
     /* Set the thread's register storage back to default if the address passed in is null */
     if(Kaddr==0)
+    {
+        RME_COVERAGE_MARKER();
+
         Thd_Struct->Cur_Reg=&(Thd_Struct->Def_Reg);
+    }
     else
     {
+        RME_COVERAGE_MARKER();
+        
         /* Register external save area must be aligned to word boundary and accessible to the kernel */
         if(RME_IS_ALIGNED(Kaddr)&&(Kaddr>=RME_HYP_VA_START)&&
            ((Kaddr+sizeof(struct RME_Thd_Regs))<(RME_HYP_VA_START+RME_HYP_SIZE)))
+        {
+            RME_COVERAGE_MARKER();
+
             Thd_Struct->Cur_Reg=(struct RME_Thd_Regs*)Kaddr;
+        }
         else
+        {
+            RME_COVERAGE_MARKER();
+
             return RME_ERR_PTH_PGTBL;
+        }
     }
     
     return 0;
@@ -3181,41 +4340,95 @@ rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Thd,
     /* See if we need the signal endpoint for this operation */
     if(Cap_Sig<RME_CAPID_NULL)
     {
+        RME_COVERAGE_MARKER();
+
         RME_CAPTBL_GETCAP(Captbl,Cap_Sig,RME_CAP_SIG,struct RME_Cap_Sig*,Sig_Op,Type_Ref);
         RME_CAP_CHECK(Sig_Op,RME_SIG_FLAG_SCHED);
     }
     else
+    {
+        RME_COVERAGE_MARKER();
+
     	Sig_Op=0;
+    }
 
     /* Check the TID passed in to see whether it is good */
     if((TID>=RME_THD_FAULT_FLAG)||(TID<0))
+    {
+        RME_COVERAGE_MARKER();
+
     	return RME_ERR_PTH_TID;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
 
     /* See if the target thread is already binded. If yes, we just quit */
     Thd_Op_Struct=RME_CAP_GETOBJ(Thd_Op,struct RME_Thd_Struct*);
     Old_CPU_Local=Thd_Op_Struct->Sched.CPU_Local;
     if(Old_CPU_Local!=RME_THD_UNBINDED)
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_PTH_INVSTATE;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     
     /* See if the parent thread is on the same core with the current processor */
     CPU_Local=RME_CPU_LOCAL();
     Thd_Sched_Struct=RME_CAP_GETOBJ(Thd_Sched,struct RME_Thd_Struct*);
     if(Thd_Sched_Struct->Sched.CPU_Local!=CPU_Local)
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_PTH_INVSTATE;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
 
     /* See if we are trying to bind to ourself. This is prohibited */
     if(Thd_Op_Struct==Thd_Sched_Struct)
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_PTH_NOTIF;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     
     /* See if the priority relationship is correct */
     if(Thd_Sched_Struct->Sched.Max_Prio<Prio)
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_PTH_PRIO;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
 
     /* Yes, it is on the current processor. Try to bind the thread */
     if(RME_COMP_SWAP((rme_ptr_t*)&(Thd_Op_Struct->Sched.CPU_Local),
-                       (rme_ptr_t)Old_CPU_Local,
-                       (rme_ptr_t)CPU_Local)==0)
+                     (rme_ptr_t)Old_CPU_Local,
+                     (rme_ptr_t)CPU_Local)==0)
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_PTH_CONFLICT;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     
     /* Binding successful. Do operations to finish this. There's no need to worry about
      * other cores' operations on this thread because this thread is already binded
@@ -3226,9 +4439,15 @@ rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Thd,
 
     /* Tie the signal endpoint to it if not zero */
     if(Sig_Op==0)
+    {
+        RME_COVERAGE_MARKER();
+
     	Thd_Op_Struct->Sched.Sched_Sig=0;
+    }
     else
     {
+        RME_COVERAGE_MARKER();
+
         Sig_Op_Struct=RME_CAP_GETOBJ(Sig_Op,struct RME_Sig_Struct*);
     	Thd_Op_Struct->Sched.Sched_Sig=Sig_Op_Struct;
         /* Increase the reference count of the signal endpoint(not the capability!) */
@@ -3272,11 +4491,27 @@ rme_ret_t _RME_Thd_Sched_Prio(struct RME_Cap_Captbl* Captbl,
     CPU_Local=RME_CPU_LOCAL();
     Thd_Struct=(struct RME_Thd_Struct*)Thd_Op->Head.Object;
     if(Thd_Struct->Sched.CPU_Local!=CPU_Local)
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_PTH_INVSTATE;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     
     /* See if the priority relationship is correct */
     if(Thd_Struct->Sched.Max_Prio<Prio)
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_PTH_PRIO;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     
     /* Now save the system call return value to the caller stack */
     __RME_Set_Syscall_Retval(Reg,0);
@@ -3286,6 +4521,8 @@ rme_ret_t _RME_Thd_Sched_Prio(struct RME_Cap_Captbl* Captbl,
      * priority, put it back, and see if we need a reschedule. */
     if((Thd_Struct->Sched.State==RME_THD_RUNNING)||(Thd_Struct->Sched.State==RME_THD_READY))
     {
+        RME_COVERAGE_MARKER();
+
         _RME_Run_Del(Thd_Struct);
         Thd_Struct->Sched.Prio=Prio;
         _RME_Run_Ins(Thd_Struct);
@@ -3293,9 +4530,12 @@ rme_ret_t _RME_Thd_Sched_Prio(struct RME_Cap_Captbl* Captbl,
         /* Get the current highest-priority running thread */
         Thd_Struct=_RME_Run_High(CPU_Local);
         RME_ASSERT(Thd_Struct->Sched.Prio>=(CPU_Local->Cur_Thd)->Sched.Prio);
+        
         /* See if we need a context switch */
         if(Thd_Struct->Sched.Prio>(CPU_Local->Cur_Thd)->Sched.Prio)
         {
+            RME_COVERAGE_MARKER();
+
             /* This will cause a solid context switch - The current thread will be set
              * to ready, and we will set the thread that we switch to to be running. */
             _RME_Run_Swt(Reg,CPU_Local->Cur_Thd,Thd_Struct);
@@ -3303,9 +4543,17 @@ rme_ret_t _RME_Thd_Sched_Prio(struct RME_Cap_Captbl* Captbl,
             Thd_Struct->Sched.State=RME_THD_RUNNING;
             CPU_Local->Cur_Thd=Thd_Struct;
         }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
     }
     else
+    {
+        RME_COVERAGE_MARKER();
+
         Thd_Struct->Sched.Prio=Prio;
+    }
     
     return 0;
 }
@@ -3336,16 +4584,31 @@ rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Captbl* Captbl,
     RME_CAP_CHECK(Thd_Op,RME_THD_FLAG_SCHED_FREE);
     
     /* See if the target thread is already binded. If no or binded to other cores, we just quit */
+    CPU_Local=RME_CPU_LOCAL();
     Thd_Struct=(struct RME_Thd_Struct*)Thd_Op->Head.Object;
-    if(Thd_Struct->Sched.CPU_Local==RME_THD_UNBINDED)
+    if(Thd_Struct->Sched.CPU_Local!=CPU_Local)
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_PTH_INVSTATE;
-    if(Thd_Struct->Sched.CPU_Local!=RME_CPU_LOCAL())
-        return RME_ERR_PTH_INVSTATE;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     
     /* Am I referenced by someone as a scheduler? If yes, we cannot unbind. Because
      * boot-time thread's refcnt will never be 0, thus they will never pass this checking */
     if(Thd_Struct->Sched.Refcnt!=0)
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_PTH_REFCNT;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     
     /* Decrease the parent's reference count */
     Thd_Struct->Sched.Parent->Sched.Refcnt--;
@@ -3353,13 +4616,27 @@ rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Captbl* Captbl,
     /* See if we have any events sent to the parent. If yes, remove that event */
     if(Thd_Struct->Sched.Notif.Next!=&(Thd_Struct->Sched.Notif))
     {
+        RME_COVERAGE_MARKER();
+
         __RME_List_Del(Thd_Struct->Sched.Notif.Prev,Thd_Struct->Sched.Notif.Next);
         __RME_List_Crt(&(Thd_Struct->Sched.Notif));
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
     }
     
     /* If we have an scheduler event endpoint, release it */
     if(Thd_Struct->Sched.Sched_Sig!=0)
+    {
+        RME_COVERAGE_MARKER();
+
     	RME_FETCH_ADD(&(Thd_Struct->Sched.Sched_Sig->Refcnt), -1);
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
 
     /* Now save the system call return value to the caller stack */
     __RME_Set_Syscall_Retval(Reg,0);  
@@ -3370,14 +4647,24 @@ rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Captbl* Captbl,
      * not clear the fault here, and we will wait for the Exec_Set to clear it. */
     if(Thd_Struct->Sched.State!=RME_THD_BLOCKED)
     {
+        RME_COVERAGE_MARKER();
+
         if((Thd_Struct->Sched.State==RME_THD_RUNNING)||(Thd_Struct->Sched.State==RME_THD_READY))
         {
+            RME_COVERAGE_MARKER();
+
             _RME_Run_Del(Thd_Struct);
             Thd_Struct->Sched.State=RME_THD_TIMEOUT;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
         }
     }
     else
     {
+        RME_COVERAGE_MARKER();
+        
         /* If it got here, the thread that is operated on cannot be the current thread, so
          * we are not overwriting the return value of the caller thread */
         __RME_Set_Syscall_Retval(&(Thd_Struct->Cur_Reg->Reg),RME_ERR_SIV_FREE);
@@ -3388,14 +4675,19 @@ rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Captbl* Captbl,
     /* Delete all slices on it */
     Thd_Struct->Sched.Slices=0;
     
-    CPU_Local=RME_CPU_LOCAL();
     /* See if this thread is the current thread. If yes, then there will be a context switch */
     if(CPU_Local->Cur_Thd==Thd_Struct)
     {
+        RME_COVERAGE_MARKER();
+
         CPU_Local->Cur_Thd=_RME_Run_High(CPU_Local);
         _RME_Run_Ins(CPU_Local->Cur_Thd);
         (CPU_Local->Cur_Thd)->Sched.State=RME_THD_RUNNING;
         _RME_Run_Swt(Reg,Thd_Struct,CPU_Local->Cur_Thd);
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
     }
     
     /* Set the state to unbinded so other cores can bind */
@@ -3408,15 +4700,18 @@ rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Captbl* Captbl,
 Description : Try to receive a notification from the scheduler queue. This
               can only be called from the same core the thread is on.
 Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
+              struct RME_Reg_Struct* Reg - The current thread's register set.
               rme_cid_t Cap_Thd - The capability to the scheduler thread. We are going
-                                  to get timeout notifications for the threads that
-                                  it is responsible for scheduling. This capability must
-                                  point to the calling thread itself, or the receiving
-                                  is simply not allowed. 2-Level.
-Output      : None.
+                                  to get timeout or fault notifications for the threads
+                                  that it is responsible for scheduling. This capability
+                                  must point to a thread on the same core. 2-Level.
+Output      : struct RME_Reg_Struct* Reg - The current thread's register set, 
+                                           with the architecture-specific reason of the
+                                           fault populated to the invocation return value
+                                           position of it.
 Return      : rme_ret_t - If successful, the thread ID; or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Thd)
+rme_ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg, rme_cid_t Cap_Thd)
 {
     struct RME_Cap_Thd* Thd_Op;
     struct RME_Thd_Struct* Thd_Struct;
@@ -3431,13 +4726,27 @@ rme_ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Thd)
     /* Check if the CPUID is correct. Only if yes can we proceed */
     Thd_Struct=(struct RME_Thd_Struct*)Thd_Op->Head.Object;
     if(Thd_Struct->Sched.CPU_Local!=RME_CPU_LOCAL())
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_PTH_INVSTATE;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     
     /* Are there any notifications? */
     if(Thd_Struct->Sched.Event.Next==&(Thd_Struct->Sched.Event))
     {
+        RME_COVERAGE_MARKER();
+
         /* Check the blocking flag to see whether we need to block the thread */
         return RME_ERR_PTH_NOTIF;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
     }
     
     /* Return one notification and delete it from the notification list */
@@ -3448,7 +4757,17 @@ rme_ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Thd)
     
     /* See if the child is in a faulty state. If yes, we return a fault notification with that TID */
     if(Thd_Child->Sched.State==RME_THD_FAULT)
+    {
+        RME_COVERAGE_MARKER();
+        /* Set the reason of that fault to the invocation return value register */
+        __RME_Set_Inv_Retval(Reg,Thd_Child->Sched.Fault);
+        /* Return the TID with the fault flag set */
         return Thd_Child->Sched.TID|RME_THD_FAULT_FLAG;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
 
     /* Return the notification TID, which means that it is just a timeout */
     return Thd_Child->Sched.TID;
@@ -3538,7 +4857,15 @@ rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struc
     
     /* We may allow transferring infinite time here */
     if(Time==0)
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_PTH_INVSTATE;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     
     /* Get the capability slot */
     RME_CAPTBL_GETCAP(Captbl,Cap_Thd_Dst,RME_CAP_THD,struct RME_Cap_Thd*,Thd_Dst,Type_Ref);
@@ -3551,38 +4878,96 @@ rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struc
     CPU_Local=RME_CPU_LOCAL();
     Thd_Src_Struct=RME_CAP_GETOBJ(Thd_Src,struct RME_Thd_Struct*);
     if(Thd_Src_Struct->Sched.CPU_Local!=CPU_Local)
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_PTH_INVSTATE;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
+    
     /* Do we have slices to transfer? - slices == 0 implies TIMEOUT, or BLOCKED, or even FAULT */
     if(Thd_Src_Struct->Sched.Slices==0)
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_PTH_INVSTATE;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
+    
     Thd_Dst_Struct=RME_CAP_GETOBJ(Thd_Dst,struct RME_Thd_Struct*);
+    
     if(Thd_Dst_Struct->Sched.CPU_Local!=CPU_Local)
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_PTH_INVSTATE;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
+    
     /* See if the destination is in a fault. If yes, cancel the transfer */
     if(Thd_Dst_Struct->Sched.State==RME_THD_FAULT)
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_PTH_FAULT;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     
     /* Delegating from a normal thread */
     if(Thd_Src_Struct->Sched.Slices<RME_THD_INF_TIME)
     {
+        RME_COVERAGE_MARKER();
+
         /* Delegate all our time */
         if(Time>=RME_THD_INF_TIME)
+        {
+            RME_COVERAGE_MARKER();
+
             Time_Xfer=Thd_Src_Struct->Sched.Slices;
+        }
         /* Delegate some time, if not sufficient, clean up the source time */
         else
         {
+            RME_COVERAGE_MARKER();
+            
             if(Thd_Src_Struct->Sched.Slices>Time)
+            {
+                RME_COVERAGE_MARKER();
+
                 Time_Xfer=Time;
+            }
             else
+            {
+                RME_COVERAGE_MARKER();
+
                 Time_Xfer=Thd_Src_Struct->Sched.Slices;
+            }
         }
         
         /* See if we are transferring to an infinite budget thread. If yes, we
          * are revoking timeslices; If not, this is a finite transfer */
         if(Thd_Dst_Struct->Sched.Slices<RME_THD_INF_TIME)
         {
+            RME_COVERAGE_MARKER();
+            
             RME_TIME_CHECK(Thd_Dst_Struct->Sched.Slices,Time_Xfer);
             Thd_Dst_Struct->Sched.Slices+=Time_Xfer;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
         }
         
         Thd_Src_Struct->Sched.Slices-=Time_Xfer;
@@ -3590,22 +4975,51 @@ rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struc
     /* Delegating from init or infinite thread */
     else
     {
+        RME_COVERAGE_MARKER();
+
         /* Infinite transfer to the destination */
         if(Time>=RME_THD_INF_TIME)
         {
+            RME_COVERAGE_MARKER();
+
             /* This transfer will revoke the infinite budget */
             if(Time==RME_THD_INIT_TIME)
             {
+                RME_COVERAGE_MARKER();
+                
                 /* Will not revoke, source is an init thread */
                 if(Thd_Src_Struct->Sched.Slices!=RME_THD_INIT_TIME)
+                {
+                    RME_COVERAGE_MARKER();
+                    
                     Thd_Src_Struct->Sched.Slices=0;
+                }
+                else
+                {
+                    RME_COVERAGE_MARKER();
+                }
             }
+            else
+            {
+                RME_COVERAGE_MARKER();
+            }
+            
             /* Set destination to infinite if it is not an init thread */
             if(Thd_Dst_Struct->Sched.Slices<RME_THD_INF_TIME)
+            {
+                RME_COVERAGE_MARKER();
+                
                 Thd_Dst_Struct->Sched.Slices=RME_THD_INF_TIME;
+            }
+            else
+            {
+                RME_COVERAGE_MARKER();
+            }
         }
         else
         {
+            RME_COVERAGE_MARKER();
+
             /* Just increase the budget of the other thread - check first */
             RME_TIME_CHECK(Thd_Dst_Struct->Sched.Slices,Time);
             Thd_Dst_Struct->Sched.Slices+=Time;
@@ -3616,15 +5030,27 @@ rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struc
      * parent. If it is not in the run queue, The state of the source must be BLOCKED. */
     if(Thd_Src_Struct->Sched.Slices==0)
     {
+        RME_COVERAGE_MARKER();
+        
     	/* If it is blocked, we do not change its state, and only sends the scheduler notification */
         if((Thd_Src_Struct->Sched.State==RME_THD_RUNNING)||(Thd_Src_Struct->Sched.State==RME_THD_READY))
         {
+            RME_COVERAGE_MARKER();
+            
             _RME_Run_Del(Thd_Src_Struct);
             Thd_Src_Struct->Sched.State=RME_THD_TIMEOUT;
         }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
 
         /* Notify the parent about this */
-        _RME_Run_Notif(Reg, Thd_Src_Struct);
+        _RME_Run_Notif(Thd_Src_Struct);
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
     }
 
     /* Now save the system call return value to the caller stack - how much time the destination have now */
@@ -3634,8 +5060,14 @@ rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struc
      * activate it. If it is other state, then leave it alone */
     if(Thd_Dst_Struct->Sched.State==RME_THD_TIMEOUT)
     {
+        RME_COVERAGE_MARKER();
+        
         Thd_Dst_Struct->Sched.State=RME_THD_READY;
         _RME_Run_Ins(Thd_Dst_Struct);
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
     }
     
     /* All possible kernel send (scheduler notifications) done, now pick the highest
@@ -3681,67 +5113,126 @@ rme_ret_t _RME_Thd_Swt(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg
     CPU_Local=RME_CPU_LOCAL();                                                   
     if(Cap_Thd<RME_CAPID_NULL)
     {
+        RME_COVERAGE_MARKER();
+        
         RME_CAPTBL_GETCAP(Captbl,Cap_Thd,RME_CAP_THD,struct RME_Cap_Thd*,Next_Thd_Cap,Type_Ref);
         /* Check if the target cap is not frozen and allows such operations */
         RME_CAP_CHECK(Next_Thd_Cap,RME_THD_FLAG_SWT);
         /* See if we can do operation on this core */
         Next_Thd=RME_CAP_GETOBJ(Next_Thd_Cap, struct RME_Thd_Struct*);
         if(Next_Thd->Sched.CPU_Local!=CPU_Local)
+        {
+            RME_COVERAGE_MARKER();
+
             return RME_ERR_PTH_INVSTATE;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
+            
         /* See if we can yield to the thread */
         if((CPU_Local->Cur_Thd)->Sched.Prio!=Next_Thd->Sched.Prio)
+        {
+            RME_COVERAGE_MARKER();
+
             return RME_ERR_PTH_PRIO;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
+            
         /* See if the state will allow us to do this */
         if((Next_Thd->Sched.State==RME_THD_BLOCKED)||(Next_Thd->Sched.State==RME_THD_TIMEOUT))
+        {
+            RME_COVERAGE_MARKER();
+
             return RME_ERR_PTH_INVSTATE;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
+            
         /* See if the target is in a fault state */
         if(Next_Thd->Sched.State==RME_THD_FAULT)
+        {
+            RME_COVERAGE_MARKER();
+
             return RME_ERR_PTH_FAULT;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
         
         /* See if we need to give up all our timeslices in this yield */
         if((Full_Yield!=0)&&((CPU_Local->Cur_Thd)->Sched.Slices<RME_THD_INF_TIME))
         {
+            RME_COVERAGE_MARKER();
+            
             _RME_Run_Del(CPU_Local->Cur_Thd);
             (CPU_Local->Cur_Thd)->Sched.Slices=0;
             (CPU_Local->Cur_Thd)->Sched.State=RME_THD_TIMEOUT;
-            /* Notify the parent about this */
-            _RME_Run_Notif(Reg,CPU_Local->Cur_Thd);
+            /* Notify the parent about this. This function includes kernel send as well, but
+             * we don't need to call _RME_Kern_High after this because we are using optimized
+             * logic for this context switch. For all other cases, _RME_Kern_High must be called. */
+            _RME_Run_Notif(CPU_Local->Cur_Thd);
             /* See if the next thread is on the same priority level with the designated thread.
              * because we have sent a notification, we are not sure about this now. Additionally,
              * if the next thread is the current thread, we are forced to switch to someone else,
              * because our timeslice have certainly exhausted. */
             High_Thd=_RME_Run_High(CPU_Local);
             if((High_Thd->Sched.Prio>Next_Thd->Sched.Prio)||(CPU_Local->Cur_Thd==Next_Thd))
+            {
+                RME_COVERAGE_MARKER();
+                
             	Next_Thd=High_Thd;
+            }
+            else
+            {
+                RME_COVERAGE_MARKER();
+            }
         }
         else
+        {
+            RME_COVERAGE_MARKER();
+            
             (CPU_Local->Cur_Thd)->Sched.State=RME_THD_READY;
+        }
     }
     else
     {
+        RME_COVERAGE_MARKER();
+        
         /* See if we need to give up all our timeslices in this yield */
         if((Full_Yield!=0)&&((CPU_Local->Cur_Thd)->Sched.Slices<RME_THD_INF_TIME))
         {
+            RME_COVERAGE_MARKER();
+            
             _RME_Run_Del(CPU_Local->Cur_Thd);
             (CPU_Local->Cur_Thd)->Sched.Slices=0;
             (CPU_Local->Cur_Thd)->Sched.State=RME_THD_TIMEOUT;
             /* Notify the parent about this */
-            _RME_Run_Notif(Reg, CPU_Local->Cur_Thd);
+            _RME_Run_Notif(CPU_Local->Cur_Thd);
         }
         else
         {
+            RME_COVERAGE_MARKER();
+            
             /* This operation is just to make sure that there are any other thread
              * at the same priority level, we're not switching to ourself */
             _RME_Run_Del(CPU_Local->Cur_Thd);
             _RME_Run_Ins(CPU_Local->Cur_Thd);
             (CPU_Local->Cur_Thd)->Sched.State=RME_THD_READY;
         }
+        
         Next_Thd=_RME_Run_High(CPU_Local);
     }
     
     /* Now that we are successful, save the system call return value to the caller stack */
     __RME_Set_Syscall_Retval(Reg,0);
-
 
     /* Set the next thread's state first */
     Next_Thd->Sched.State=RME_THD_RUNNING;
@@ -3749,7 +5240,16 @@ rme_ret_t _RME_Thd_Swt(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg
      * highest priority thread according to the logic above. We just check if
      * it happens to be ourself so we can return from the fast path. */
     if(CPU_Local->Cur_Thd==Next_Thd)
+    {
+        RME_COVERAGE_MARKER();
+        
         return 0;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
+            
     /* We have a solid context switch */
     _RME_Run_Swt(Reg, CPU_Local->Cur_Thd, Next_Thd);
     CPU_Local->Cur_Thd=Next_Thd;
@@ -3794,8 +5294,14 @@ rme_ret_t _RME_Sig_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
     /* Try to populate the area */
     if(_RME_Kotbl_Mark(Vaddr, RME_SIG_SIZE)!=0)
     {
+        RME_COVERAGE_MARKER();
+
         RME_WRITE_RELEASE(&(Sig_Crt->Head.Type_Ref),0);
         return RME_ERR_CAP_KOTBL;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
     }
     
     /* Fill in the structure */
@@ -3857,8 +5363,14 @@ rme_ret_t _RME_Sig_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
     /* Try to populate the area */
     if(_RME_Kotbl_Mark(Vaddr, RME_SIG_SIZE)!=0)
     {
+        RME_COVERAGE_MARKER();
+
         RME_WRITE_RELEASE(&(Sig_Crt->Head.Type_Ref),0);
         return RME_ERR_CAP_KOTBL;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
     }
     
     /* Fill in the structure */
@@ -3912,16 +5424,28 @@ rme_ret_t _RME_Sig_Del(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rme_
     /* See if the signal endpoint is currently used. If yes, we cannot delete it */
     if(Sig_Struct->Thd!=0)
     {
+        RME_COVERAGE_MARKER();
+
         RME_CAP_DEFROST(Sig_Del,Type_Ref);
         return RME_ERR_SIV_ACT;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
     }
     
     /* See if this is a kernel endpoint, or a currently referened endpoint. If yes,
      * we cannot delete it */
     if(Sig_Struct->Refcnt!=0)
     {
+        RME_COVERAGE_MARKER();
+
         RME_CAP_DEFROST(Sig_Del,Type_Ref);
         return RME_ERR_SIV_CONFLICT;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
     }
     
     /* Now we can safely delete the cap */
@@ -3951,20 +5475,50 @@ void _RME_Kern_High(struct RME_Reg_Struct* Reg, struct RME_CPU_Local* CPU_Local)
 
     /* Are these two threads the same? */
     if(Thd_Struct==(CPU_Local->Cur_Thd))
+    {
+        RME_COVERAGE_MARKER();
+
         return;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
 
     /* Is the current thread running or ready? */
     if(((CPU_Local->Cur_Thd)->Sched.State==RME_THD_RUNNING)||
        ((CPU_Local->Cur_Thd)->Sched.State==RME_THD_READY))
     {
+        RME_COVERAGE_MARKER();
+
         /* Yes, compare the priority to see if we need to do it */
         if(Thd_Struct->Sched.Prio<=(CPU_Local->Cur_Thd)->Sched.Prio)
+        {
+            RME_COVERAGE_MARKER();
+
             return;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
     }
 
     /* We will have a solid context switch on this point */
     if((CPU_Local->Cur_Thd)->Sched.State==RME_THD_RUNNING)
+    {
+        RME_COVERAGE_MARKER();
+
         (CPU_Local->Cur_Thd)->Sched.State=RME_THD_READY;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
 
     _RME_Run_Swt(Reg,(CPU_Local->Cur_Thd),Thd_Struct);
     Thd_Struct->Sched.State=RME_THD_RUNNING;
@@ -3976,19 +5530,14 @@ void _RME_Kern_High(struct RME_Reg_Struct* Reg, struct RME_CPU_Local* CPU_Local)
 Description : Try to send a signal to an endpoint from kernel. This is intended to
               be called in the interrupt routines in the kernel, and this is not a
               system call.
-Input       : struct RME_Reg_Struct* Reg - The register set.
-              struct RME_Sig_Struct* Sig - The signal structure.
+Input       : struct RME_Sig_Struct* Sig - The signal structure.
 Output      : None.
 Return      : rme_ret_t - If successful, 0, or an error code.
 ******************************************************************************/
-rme_ret_t _RME_Kern_Snd(struct RME_Reg_Struct* Reg, struct RME_Sig_Struct* Sig_Struct)
+rme_ret_t _RME_Kern_Snd(struct RME_Sig_Struct* Sig_Struct)
 {
     struct RME_Thd_Struct* Thd_Struct;
     rme_ptr_t Unblock;
-    
-    /* Cannot send to a pure user endpoint in the kernel */
-    if(Sig_Struct->Refcnt==0)
-        return RME_ERR_SIV_CONFLICT;
     
     /* See if we can receive on that endpoint - if someone blocks, we must
      * wait for it to unblock before we can proceed */
@@ -3997,16 +5546,32 @@ rme_ret_t _RME_Kern_Snd(struct RME_Reg_Struct* Reg, struct RME_Sig_Struct* Sig_S
      * we actually unblock. Use an intermediate variable Unblock to avoid optimizations */
     if(Thd_Struct!=0)
     {
+        RME_COVERAGE_MARKER();
+
         if(Thd_Struct->Sched.CPU_Local==RME_CPU_LOCAL())
+        {
+            RME_COVERAGE_MARKER();
+
             Unblock=1;
+        }
         else
+        {
+            RME_COVERAGE_MARKER();
+
             Unblock=0;
+        }
     }
     else
+    {
+        RME_COVERAGE_MARKER();
+
         Unblock=0;
-    
+    }
+
     if(Unblock!=0)
     {
+        RME_COVERAGE_MARKER();
+
         /* The thread is blocked, and it is on our core. Unblock it, and
          * set the return value to one as always, Even if we were specifying
          * multi-receive. This is because other cores may reduce the count
@@ -4015,6 +5580,8 @@ rme_ret_t _RME_Kern_Snd(struct RME_Reg_Struct* Reg, struct RME_Sig_Struct* Sig_S
         /* See if the thread still have time left */
         if(Thd_Struct->Sched.Slices!=0)
         {
+            RME_COVERAGE_MARKER();
+
             /* Put this into the runqueue and just set it to ready. We will not switch to it
              * immediately; this is because we may send to a myriad of endpoints in one
              * interrupt, and we hope to perform the context switch only once when exiting
@@ -4024,6 +5591,8 @@ rme_ret_t _RME_Kern_Snd(struct RME_Reg_Struct* Reg, struct RME_Sig_Struct* Sig_S
         }
         else
         {
+            RME_COVERAGE_MARKER();
+
             /* No slices left. The only possible reason is because we delegated
              * all of its time to someone else. We will not notify its parent again
              * here because we will have notified it when we transferred all the
@@ -4038,12 +5607,20 @@ rme_ret_t _RME_Kern_Snd(struct RME_Reg_Struct* Reg, struct RME_Sig_Struct* Sig_S
     }
     else
     {
+        RME_COVERAGE_MARKER();
+
         /* The guy who blocked on it is not on our core, or nobody blocked.
          * We just faa the counter value and return */
         if(RME_FETCH_ADD(&(Sig_Struct->Signal_Num),1)>RME_MAX_SIG_NUM)
         {
+            RME_COVERAGE_MARKER();
+
             RME_FETCH_ADD(&(Sig_Struct->Signal_Num),-1);
             return RME_ERR_SIV_FULL;
+        }
+        else
+        {
+            RME_COVERAGE_MARKER();
         }
     }
 
@@ -4081,16 +5658,32 @@ rme_ret_t _RME_Sig_Snd(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg
      * we actually unblock. Use an intermediate variable Unblock to avoid optimizations */
     if(Thd_Struct!=0)
     {
+        RME_COVERAGE_MARKER();
+
         if(Thd_Struct->Sched.CPU_Local==CPU_Local)
+        {
+            RME_COVERAGE_MARKER();
+
             Unblock=1;
+        }
         else
+        {
+            RME_COVERAGE_MARKER();
+
             Unblock=0;
+        }
     }
     else
+    {
+        RME_COVERAGE_MARKER();
+
         Unblock=0;
+    }
     
     if(Unblock!=0)
     {
+        RME_COVERAGE_MARKER();
+
         /* Now save the system call return value to the caller stack */
         __RME_Set_Syscall_Retval(Reg,0);
         /* The thread is blocked, and it is on our core. Unblock it, and
@@ -4101,11 +5694,15 @@ rme_ret_t _RME_Sig_Snd(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg
         /* See if the thread still have time left */
         if(Thd_Struct->Sched.Slices!=0)
         {
+            RME_COVERAGE_MARKER();
+
             /* Put this into the runqueue */
             _RME_Run_Ins(Thd_Struct);
             /* See if it will preempt us */
             if(Thd_Struct->Sched.Prio>(CPU_Local->Cur_Thd)->Sched.Prio)
             {
+                RME_COVERAGE_MARKER();
+
                 /* Yes. Do a context switch */
                 _RME_Run_Swt(Reg,CPU_Local->Cur_Thd,Thd_Struct);
                 (CPU_Local->Cur_Thd)->Sched.State=RME_THD_READY;
@@ -4113,10 +5710,16 @@ rme_ret_t _RME_Sig_Snd(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg
                 CPU_Local->Cur_Thd=Thd_Struct;
             }
             else
+            {
+                RME_COVERAGE_MARKER();
+
                 Thd_Struct->Sched.State=RME_THD_READY;
+            }
         }
         else
         {
+            RME_COVERAGE_MARKER();
+
             /* Silently change state to timeout */
             Thd_Struct->Sched.State=RME_THD_TIMEOUT;
         }
@@ -4127,12 +5730,21 @@ rme_ret_t _RME_Sig_Snd(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg
     }
     else
     {
+        RME_COVERAGE_MARKER();
+
         /* The guy who blocked on it is not on our core, we just faa and return */
         if(RME_FETCH_ADD(&(Sig_Struct->Signal_Num),1)>RME_MAX_SIG_NUM)
         {
+            RME_COVERAGE_MARKER();
+
             RME_FETCH_ADD(&(Sig_Struct->Signal_Num),-1);
             return RME_ERR_SIV_FULL;
         }
+        else
+        {
+            RME_COVERAGE_MARKER();
+        }
+        
         /* Now save the system call return value to the caller stack */
         __RME_Set_Syscall_Retval(Reg,0);
     }
@@ -4182,11 +5794,40 @@ rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg
     /* Check if the target captbl is not frozen and allows such operations */
     switch(Option)
     {
-        case RME_RCV_BS:RME_CAP_CHECK(Sig_Op,RME_SIG_FLAG_RCV_BS);break;
-        case RME_RCV_BM:RME_CAP_CHECK(Sig_Op,RME_SIG_FLAG_RCV_BM);break;
-        case RME_RCV_NS:RME_CAP_CHECK(Sig_Op,RME_SIG_FLAG_RCV_NS);break;
-        case RME_RCV_NM:RME_CAP_CHECK(Sig_Op,RME_SIG_FLAG_RCV_NM);break;
-        default:return RME_ERR_SIV_ACT;
+        case RME_RCV_BS:
+        {
+            RME_COVERAGE_MARKER();
+
+            RME_CAP_CHECK(Sig_Op,RME_SIG_FLAG_RCV_BS);
+            break;
+        }
+        case RME_RCV_BM:
+        {
+            RME_COVERAGE_MARKER();
+            
+            RME_CAP_CHECK(Sig_Op,RME_SIG_FLAG_RCV_BM);
+            break;
+        }
+        case RME_RCV_NS:
+        {
+            RME_COVERAGE_MARKER();
+            
+            RME_CAP_CHECK(Sig_Op,RME_SIG_FLAG_RCV_NS);
+            break;
+        }
+        case RME_RCV_NM:
+        {
+            RME_COVERAGE_MARKER();
+            
+            RME_CAP_CHECK(Sig_Op,RME_SIG_FLAG_RCV_NM);
+            break;
+        }
+        default:
+        {
+            RME_COVERAGE_MARKER();
+            
+            return RME_ERR_SIV_ACT;
+        }
     }
     
     /* See if we can receive on that endpoint - if someone blocks, we must
@@ -4194,7 +5835,15 @@ rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg
     Sig_Struct=RME_CAP_GETOBJ(Sig_Op,struct RME_Sig_Struct*);
     Thd_Struct=Sig_Struct->Thd;
     if(Thd_Struct!=0)
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_SIV_ACT;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
     
     /* Are we trying to let a boot-time thread block on a signal? This is NOT allowed.
      * Additionally, if the current thread have no timeslice left (which shouldn't happen
@@ -4203,39 +5852,85 @@ rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg
     Thd_Struct=CPU_Local->Cur_Thd;
     RME_ASSERT(Thd_Struct->Sched.Slices!=0);
     if(Thd_Struct->Sched.Slices==RME_THD_INIT_TIME)
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_SIV_BOOT;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
 
     /* Are there any counts available? If yes, just take one and return. We cannot
      * use faa here because we don't know if we will get it below zero */
     Old_Value=Sig_Struct->Signal_Num;
     if(Old_Value>0)
     {
+        RME_COVERAGE_MARKER();
+
         /* We can't use fetch-and-add because we don't know if other cores will reduce count to zero */
         if((Option==RME_RCV_BS)||(Option==RME_RCV_NS))
         {
+            RME_COVERAGE_MARKER();
+
             /* Try to take one */
             if(RME_COMP_SWAP(&(Sig_Struct->Signal_Num),Old_Value,Old_Value-1)==0)
+            {
+                RME_COVERAGE_MARKER();
+
                 return RME_ERR_SIV_CONFLICT;
+            }
+            else
+            {
+                RME_COVERAGE_MARKER();
+            }
+            
             /* We have taken it, now return what we have taken */
             __RME_Set_Syscall_Retval(Reg, 1);
         }
         else
         {
+            RME_COVERAGE_MARKER();
+
             /* Try to take all */
             if(RME_COMP_SWAP(&(Sig_Struct->Signal_Num),Old_Value,0)==0)
+            {
+                RME_COVERAGE_MARKER();
+
                 return RME_ERR_SIV_CONFLICT;
+            }
+            else
+            {
+                RME_COVERAGE_MARKER();
+            }
+            
             /* We have taken all, now return what we have taken */
             __RME_Set_Syscall_Retval(Reg, Old_Value);
         }
+        
         return 0;
     }
     else
     {
+        RME_COVERAGE_MARKER();
+
         /* There's no value, Old_Value==0, We use this variable to try to block */
         if((Option==RME_RCV_BS)||(Option==RME_RCV_BM))
         {
+            RME_COVERAGE_MARKER();
+
             if(RME_COMP_SWAP((rme_ptr_t*)(&(Sig_Struct->Thd)),Old_Value,(rme_ptr_t)Thd_Struct)==0)
+            {
+                RME_COVERAGE_MARKER();
+
                 return RME_ERR_SIV_CONFLICT;
+            }
+            else
+            {
+                RME_COVERAGE_MARKER();
+            }
+
             /* Now we block our current thread. No need to set any return value to the register
              * set here, because we do not yet know how many signals will be there when the thread
              * unblocks. The unblocking does not need an option so we don't keep that; we always
@@ -4248,8 +5943,12 @@ rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg
             (CPU_Local->Cur_Thd)->Sched.State=RME_THD_RUNNING;
         }
         else
+        {
+            RME_COVERAGE_MARKER();
+
             /* We have taken nothing but the system call is successful anyway */
             __RME_Set_Syscall_Retval(Reg, 0);
+        }
     }
     
     return 0;
@@ -4299,8 +5998,14 @@ rme_ret_t _RME_Inv_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
     /* Try to populate the area */
     if(_RME_Kotbl_Mark(Vaddr, RME_INV_SIZE)!=0)
     {
+        RME_COVERAGE_MARKER();
+
         RME_WRITE_RELEASE(&(Inv_Crt->Head.Type_Ref),0);
         return RME_ERR_CAP_KOTBL;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
     }
     
     /* Fill in the structure */
@@ -4356,8 +6061,14 @@ rme_ret_t _RME_Inv_Del(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rme_
     /* See if the invocation is currently used. If yes, we cannot delete it */
     if(Inv_Struct->Active!=0)
     {
+        RME_COVERAGE_MARKER();
+
         RME_CAP_DEFROST(Inv_Del,Type_Ref);
         return RME_ERR_SIV_ACT;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
     }
     
     /* Now we can safely delete the cap */
@@ -4433,13 +6144,29 @@ rme_ret_t _RME_Inv_Act(struct RME_Cap_Captbl* Captbl,
     /* See if we are currently active - If yes, we can't activate it again */
     Active=Inv_Struct->Active;
     if(RME_UNLIKELY(Active!=0))
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_SIV_ACT;
-    
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
+
     /* Push this invocation stub capability into the current thread's invocation stack */
     Thd_Struct=RME_CPU_LOCAL()->Cur_Thd;
     /* Try to do CAS and activate it */
     if(RME_UNLIKELY(RME_COMP_SWAP(&(Inv_Struct->Active),Active,1)==0))
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_SIV_ACT;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
 
     /* Save whatever is needed to return to the point - normally only SP and IP needed
      * because all other registers, including the coprocessor registers, are saved at
@@ -4473,17 +6200,33 @@ rme_ret_t _RME_Inv_Ret(struct RME_Reg_Struct* Reg, rme_ptr_t Retval, rme_ptr_t F
 {
     struct RME_Thd_Struct* Thd_Struct;
     struct RME_Inv_Struct* Inv_Struct;
-    
+
     /* See if we can return; If we can, get the structure */
     Thd_Struct=RME_CPU_LOCAL()->Cur_Thd;
     Inv_Struct=RME_INVSTK_TOP(Thd_Struct);
     if(RME_UNLIKELY(Inv_Struct==0))
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_SIV_EMPTY;
-    
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
+
     /* Is this return forced by a fault? If yes, check if we allow that */
     if(RME_UNLIKELY((Fault_Flag!=0)&&(Inv_Struct->Fault_Ret_Flag==0)))
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_SIV_FAULT;
-    
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
+
     /* Pop it from the stack */
     __RME_List_Del(Inv_Struct->Head.Prev,Inv_Struct->Head.Next);
 
@@ -4498,16 +6241,32 @@ rme_ret_t _RME_Inv_Ret(struct RME_Reg_Struct* Reg, rme_ptr_t Retval, rme_ptr_t F
 
     /* Decide the system call's return value */
     if(RME_UNLIKELY(Fault_Flag!=0))
+    {
+        RME_COVERAGE_MARKER();
+
         __RME_Set_Syscall_Retval(Reg, RME_ERR_SIV_FAULT);
+    }
     else
+    {
+        RME_COVERAGE_MARKER();
+
         __RME_Set_Syscall_Retval(Reg, 0);
-    
+    }
+
     /* Same assumptions as in invocation activation */
     Inv_Struct=RME_INVSTK_TOP(Thd_Struct);
     if(Inv_Struct!=0)
+    {
+        RME_COVERAGE_MARKER();
+
         __RME_Pgtbl_Set(RME_CAP_GETOBJ(Inv_Struct->Proc->Pgtbl,rme_ptr_t));
+    }
     else
+    {
+        RME_COVERAGE_MARKER();
+
         __RME_Pgtbl_Set(RME_CAP_GETOBJ(Thd_Struct->Sched.Proc->Pgtbl,rme_ptr_t));
+    }
     
     return 0;
 }
@@ -4561,14 +6320,14 @@ Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
               rme_ptr_t Func_ID - The function ID to invoke.
               rme_ptr_t Sub_ID - The subfunction ID to invoke.
               rme_ptr_t Param1 - The first parameter.
-              rme_ptr_t Param2 - The second parameter
+              rme_ptr_t Param2 - The second parameter.
 Output      : None.
 Return      : rme_ret_t - If the call is successful, it will return whatever the 
                           function returned(It is expected that these functions shall
                           never return an negative value); else error code. If the 
-                          kernel function ever causes a context switch, it is responsible
-                          for setting the return value. On failure, a context switch 
-                          in the kernel function is banned.
+                          kernel function ever succeeds, it is responsible for setting
+                          the return value. On failure, a context switch shall never
+                          happen.
 ******************************************************************************/
 rme_ret_t _RME_Kern_Act(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,
                         rme_cid_t Cap_Kern, rme_ptr_t Func_ID, rme_ptr_t Sub_ID,
@@ -4583,10 +6342,18 @@ rme_ret_t _RME_Kern_Act(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Re
     /* Check if the range of calling is allowed - This is kernel function specific */
     if((Func_ID>RME_KERN_FLAG_HIGH(Kern_Op->Head.Flags))||
        (Func_ID<RME_KERN_FLAG_LOW(Kern_Op->Head.Flags)))
+    {
+        RME_COVERAGE_MARKER();
+
         return RME_ERR_CAP_FLAG;
+    }
+    else
+    {
+        RME_COVERAGE_MARKER();
+    }
 
     /* Return whatever the function returns */
-    return __RME_Kern_Func_Handler(Reg,Func_ID,Sub_ID,Param1,Param2);
+    return __RME_Kern_Func_Handler(Captbl,Reg,Func_ID,Sub_ID,Param1,Param2);
 }
 /* End Function:_RME_Kern_Act ************************************************/
 

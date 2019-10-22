@@ -3,7 +3,8 @@ Filename    : rme_kernel.h
 Author      : pry
 Date        : 08/04/2017
 Licence     : The Unlicense; see LICENSE for details.
-Description : The header of kernel system call path.
+Description : The header of the kernel. Whitebox testing of all branches encapsulated
+              in macros are inspected manually carefully.
 ******************************************************************************/
 
 /* Defines *******************************************************************/
@@ -89,7 +90,7 @@ Description : The header of kernel system call path.
 #define RME_PRINTK_S(STR)               RME_Print_String((rme_s8_t*)(STR))
 
 /* Shutdown debugging */
-#define RME_ASSERT_CORRECT
+/* #define RME_ASSERT_CORRECT */
 /* Default assert macro - used only when internal development option is on */
 #ifndef RME_ASSERT_CORRECT
 #define RME_ASSERT(X) \
@@ -120,7 +121,28 @@ do \
 } \
 while(0)
 #endif
-    
+
+/* Coverage testing marker */
+/* #define RME_COVERAGE */
+/* Test marker macro */
+#ifdef RME_COVERAGE
+#define RME_COVERAGE_LINES          (8192)
+#define RME_COVERAGE_MARKER() \
+do \
+{ \
+    RME_Coverage[__LINE__]++; \
+    RME_Coverage[0]=RME_Coverage[__LINE__]; \
+} \
+while(0)
+#else
+#define RME_COVERAGE_MARKER() \
+do \
+{ \
+    \
+} \
+while(0)
+#endif
+
 /* Kernel Object Table *******************************************************/
 /* Bitmap reference error */
 #define RME_ERR_KOT_BMP             (-1)
@@ -572,6 +594,8 @@ while(0)
                                                             ((THD)->Inv_Stack.Next)))
 
 /* Kernel Function ***********************************************************/
+/* Driver layer error reporting macro */
+#define RME_ERR_KERN_OPFAIL             (-1)
 /* Kernel function capability flag arrangement
 * 32-bit systems: Maximum kernel function number 2^16
 * [31        High Limit        16] [15        Low Limit        0]
@@ -639,8 +663,8 @@ struct RME_Cap_Pgtbl
     struct RME_Cap_Head Head;
     /* The entry size/number order */
     rme_ptr_t Size_Num_Order;
-    /* The start address of this page table */
-    rme_ptr_t Start_Addr;
+    /* The base address of this page table */
+    rme_ptr_t Base_Addr;
     /* We will not place the page table parent/child counter and extra information
      * like ASID here, because we consider that as a inherent part of page table.
      * Because page tables are required to be aligned to some address, thus we 
@@ -714,6 +738,8 @@ struct RME_Thd_Sched
     rme_ptr_t Slices;
     /* What is the current state of the thread? */
     rme_ptr_t State;
+    /* What is the reason for the fault that killed the thread? */
+    rme_ptr_t Fault;
     /* How many children refered to it as the scheduler thread? */
     rme_ptr_t Refcnt;
     /* What's the priority of the thread? */
@@ -820,8 +846,8 @@ struct RME_CPU_Local
     struct RME_Thd_Struct* Cur_Thd;
     /* The tick timer signal endpoint */
     struct RME_Sig_Struct* Tick_Sig;
-    /* The interrupt signal endpoint */
-    struct RME_Sig_Struct* Int_Sig;
+    /* The vector signal endpoint */
+    struct RME_Sig_Struct* Vect_Sig;
     /* The runqueue and bitmap */
     struct RME_Run_Struct Run;
 };
@@ -884,7 +910,7 @@ static rme_ret_t _RME_Captbl_Rem(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Ca
 /* Page table system calls */
 static rme_ret_t _RME_Pgtbl_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
                                 rme_cid_t Cap_Kmem, rme_cid_t Cap_Pgtbl, rme_ptr_t Raddr,
-                                rme_ptr_t Start_Addr, rme_ptr_t Top_Flag, rme_ptr_t Size_Order, rme_ptr_t Num_Order);
+                                rme_ptr_t Base_Addr, rme_ptr_t Top_Flag, rme_ptr_t Size_Order, rme_ptr_t Num_Order);
 static rme_ret_t _RME_Pgtbl_Del(struct RME_Cap_Captbl* Captbl,  rme_cid_t Cap_Captbl, rme_cid_t Cap_Pgtbl);
 static rme_ret_t _RME_Pgtbl_Add(struct RME_Cap_Captbl* Captbl, 
                                 rme_cid_t Cap_Pgtbl_Dst, rme_ptr_t Pos_Dst, rme_ptr_t Flags_Dst,
@@ -900,7 +926,7 @@ static rme_ret_t _RME_Pgtbl_Des(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Pgt
 static rme_ret_t _RME_Run_Ins(struct RME_Thd_Struct* Thd);
 static rme_ret_t _RME_Run_Del(struct RME_Thd_Struct* Thd);
 static struct RME_Thd_Struct* _RME_Run_High(struct RME_CPU_Local* CPU_Local);
-static rme_ret_t _RME_Run_Notif(struct RME_Reg_Struct* Reg, struct RME_Thd_Struct* Thd);
+static rme_ret_t _RME_Run_Notif(struct RME_Thd_Struct* Thd);
 static rme_ret_t _RME_Run_Swt(struct RME_Reg_Struct* Reg,
                               struct RME_Thd_Struct* Curr_Thd, 
                               struct RME_Thd_Struct* Next_Thd);
@@ -923,7 +949,7 @@ static rme_ret_t _RME_Thd_Sched_Prio(struct RME_Cap_Captbl* Captbl,
                                      struct RME_Reg_Struct* Reg, rme_cid_t Cap_Thd, rme_ptr_t Prio);
 static rme_ret_t _RME_Thd_Sched_Free(struct RME_Cap_Captbl* Captbl, 
                                      struct RME_Reg_Struct* Reg, rme_cid_t Cap_Thd);
-static rme_ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Thd);
+static rme_ret_t _RME_Thd_Sched_Rcv(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg, rme_cid_t Cap_Thd);
 static rme_ret_t _RME_Thd_Time_Xfer(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,
                                     rme_cid_t Cap_Thd_Dst, rme_cid_t Cap_Thd_Src, rme_ptr_t Time);
 static rme_ret_t _RME_Thd_Swt(struct RME_Cap_Captbl* Captbl,
@@ -999,7 +1025,7 @@ __EXTERN__ rme_ret_t _RME_Captbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid
 /* Page Table ****************************************************************/
 /* Boot-time calls */
 __EXTERN__ rme_ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
-                                         rme_cid_t Cap_Pgtbl, rme_ptr_t Vaddr, rme_ptr_t Start_Addr,
+                                         rme_cid_t Cap_Pgtbl, rme_ptr_t Vaddr, rme_ptr_t Base_Addr,
                                          rme_ptr_t Top_Flag, rme_ptr_t Size_Order, rme_ptr_t Num_Order);
 __EXTERN__ rme_ret_t _RME_Pgtbl_Boot_Con(struct RME_Cap_Captbl* Captbl,
                                          rme_cid_t Cap_Pgtbl_Parent, rme_ptr_t Pos,
@@ -1027,7 +1053,7 @@ __EXTERN__ void __RME_List_Ins(volatile struct RME_List* New,
 /* Initialize per-CPU data structures */
 __EXTERN__ void _RME_CPU_Local_Init(struct RME_CPU_Local* CPU_Local, rme_ptr_t CPUID);
 /* Thread fatal killer */
-__EXTERN__ rme_ret_t __RME_Thd_Fatal(struct RME_Reg_Struct* Regs);                              
+__EXTERN__ rme_ret_t __RME_Thd_Fatal(struct RME_Reg_Struct* Regs, rme_ptr_t Fault);                              
 /* Boot-time calls */
 __EXTERN__ rme_ret_t _RME_Proc_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Crt,
                                         rme_cid_t Cap_Proc, rme_cid_t Cap_Captbl, rme_cid_t Cap_Pgtbl, rme_ptr_t Vaddr);
@@ -1037,8 +1063,8 @@ __EXTERN__ rme_ret_t _RME_Thd_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t 
 
 /* Signal and Invocation *****************************************************/
 /* Kernel send facilities */
+__EXTERN__ rme_ret_t _RME_Kern_Snd(struct RME_Sig_Struct* Sig);
 __EXTERN__ void _RME_Kern_High(struct RME_Reg_Struct* Reg, struct RME_CPU_Local* CPU_Local);
-__EXTERN__ rme_ret_t _RME_Kern_Snd(struct RME_Reg_Struct* Reg, struct RME_Sig_Struct* Sig);
 /* Boot-time calls */
 __EXTERN__ rme_ret_t _RME_Sig_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
                                        rme_cid_t Cap_Sig, rme_ptr_t Vaddr);

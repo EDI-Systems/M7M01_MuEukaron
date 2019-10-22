@@ -11,7 +11,7 @@
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/81c7e91dfb0a478d985a82409538e3b9)](https://www.codacy.com/app/EDI-Systems/M7M1_MuEukaron?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=EDI-Systems/M7M1_MuEukaron&amp;utm_campaign=Badge_Grade) 
 [![Join the chat at https://gitter.im/M7M1_MuEukaron/Lobby](https://badges.gitter.im/M7M1_MuEukaron/Lobby.svg)](https://gitter.im/M7M1_MuEukaron/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-点击 **[这里](README_CN.md)** 查看中文版。
+点击 **[这里](README_CN.md)** 查看中文版。关于现在的开发，请切换到develop分支查看。
 
 &ensp;&ensp;&ensp;&ensp;**RME** is a general-purpose operating system which focuses on many advanced features. This operating system supports many advanced features not found in any other OSes, e.g. _FreeRTOS_, _RT-Thread_ ,_VxWorks_ or _Linux_. On multiple cores, it is as scalable as the Linux kernel. When using the system, the best way is to pull ready-made ports and even binaries from the repository rather than to port or configure by yourself. The advanced features that are intrinsic to this operating system includes:
 - [Capability](https://en.wikipedia.org/wiki/Capability-based_security)-based configurable protection domains;

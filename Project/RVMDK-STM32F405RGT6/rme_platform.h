@@ -7,7 +7,7 @@ Description : The platform specific types for RME.
 ******************************************************************************/
 
 /* Platform Includes *********************************************************/
-#include "Platform/CortexM/rme_platform_cmx.h"
+#include "Platform/A7M/rme_platform_a7m.h"
 /* End Platform Includes *****************************************************/
 
 /* End Of File ***************************************************************/

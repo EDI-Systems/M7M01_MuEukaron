@@ -1,36 +1,23 @@
 ;******************************************************************************
-;Filename    : platform_STM32F405RG.sct
-;Author      : pry
-;Date        : 24/06/2017
-;Licence     : The Unlicense; see LICENSE for details.
-;Description : The scatter file for Cortex-M4 layout. This file is intended 
-;              to be used with STM32F405RGT6.
-;              ROM: 0x08000000 0x00100000
-;              CCM: 0x10000000 0x00010000
-;              RAM: 0x20000000 0x00020000
-;              System ROM layout:
-;              |0x08000000            0x0800FFFF|0x08010000         0x080FFFFF|
-;              |<-           Kernel           ->|<-           User          ->|
-;              System RAM layout:
-;              |0x10000000            0x10000FFF|0x10001000         0x10001FFF|
-;              |<-        Kernel Stack        ->|<-        Kernel Data      ->|
-;              |0x10002000            0x10007FFF|0x10007FFF         0x1000FFFF|
-;              |<-       Kernel Objects       ->|<-           User          ->|
-;              |0x20000000                                          0x2001FFFF|
-;              |<-                          User                            ->|
+;Filename    : rme_platform_STM32F405RG.sct
+;Author      : The RME project generator.
+;Date        : 08/10/2019
+;Licence     : LGPL v3+; see COPYING for details.
+;Description : The scatter file for ARMv7-M layout. This file is intended
+;              to be used with STM32F405RG.
 ;******************************************************************************
 
 ; Begin Segment:KERNEL ********************************************************
 ; Description : The kernel segment, this is where the kernel of the operating
 ;               system is located at. This segment also contains the .bss(ZI)
 ;               for processes.
-;               The kernel and the init process is placed in the CCMRAM.
 ; *****************************************************************************
-KERNEL 0x08000000 0x00010000
-{   
-    ; Kernel code segment - 64kB
-    KERNEL_CODE 0x08000000 0x00010000
-    {   ; The reset vectors
+KERNEL 0x8000000 0x8000
+{
+    ; Kernel code segment
+    KERNEL_CODE 0x8000000 0x8000
+    {
+        ; The reset vectors
         *.o                            (RESET, +First)
         ; The lib code copying code
         *                              (InRoot$$Sections)
@@ -39,30 +26,24 @@ KERNEL 0x08000000 0x00010000
         ; The kernel code section
         .ANY                           (+RO)
     }
-    
-    ; Kernel stack segment - 4kB
-    KERNEL_STACK 0x10000000 0x00001000
+
+    ; Kernel stack segment
+    KERNEL_STACK 0x10003A00 0x200
     {
-        platform_a7m.o                 (HEAP)
-        platform_a7m.o                 (STACK)
+        rme_platform_a7m_asm.o             (HEAP)
+        rme_platform_a7m_asm.o             (STACK)
     }
-    
-    ; Initial kernel data segment - 4kB 
-    KERNEL_INIT 0x10001000 0x00001000
+
+    ; Initial kernel data segment
+    KERNEL_INIT 0x10000000 0x2100
     {
         .ANY                           (+RW +ZI)
     }
-    
-    ; Dynamically managed kernel data segment - 24kB
-    KERNEL_DATA 0x10002000 EMPTY 0x00006000
+
+    ; Dynamically managed kernel data segment
+    KERNEL_DATA 0x10002100 EMPTY 0x1900
     {
-        
-    }
-    
-    ; The data section of the processes - The rest of the memory
-    PROC_DATA 0x10008000 0x00008000
-    {
-        benchmark.o                    (+RW +ZI)
+
     }
 }
 ; End Segment:KERNEL **********************************************************
@@ -70,19 +51,64 @@ KERNEL 0x08000000 0x00010000
 ; Begin Segment:INIT **********************************************************
 ; Description : The .text segment of process INIT. Init is the first process
 ;               in the system, and should act as a memory manager itself.
-;               The .RODATA size if this process is 0x00010000.
 ; *****************************************************************************
-INIT 0x08010000 0x00010000
+INIT 0x8008000 0x8000
 {
-    ; Init process code segment - 64kB
-    INIT_CODE 0x08010000 0x00010000
+    ; Init process code segment
+    INIT_CODE 0x8008000 0x8000
     {
-        benchmark.o                    (+RO)
+        RVM.o                          (+RO)
     }
 }
 ; End Segment:INIT ************************************************************
 
+; Begin Segment:Proc **********************************************************
+; Description : The .text segment of the virtual machines. All virtual machines
+; needs to be placed here; If you don't want to convert them to C and compile to
+; a whole image, flash them to this address.
+; *****************************************************************************
+Proc1 0x8010000 0x8000
+{
+    ; Init process code segment
+    Proc1_CODE 0x8010000 0x8000
+    {
+        Proc1.o                         (+RO)
+    }
+}
+; End Segment:VM **************************************************************
+
+; Begin Segment:Proc **********************************************************
+; Description : The .text segment of the virtual machines. All virtual machines
+; needs to be placed here; If you don't want to convert them to C and compile to
+; a whole image, flash them to this address.
+; *****************************************************************************
+Proc2 0x8018000 0x8000
+{
+    ; Init process code segment
+    Proc2_CODE 0x8018000 0x8000
+    {
+        Proc2.o                         (+RO)
+    }
+}
+; End Segment:VM **************************************************************
+
+; Begin Segment:Proc **********************************************************
+; Description : The .text segment of the virtual machines. All virtual machines
+; needs to be placed here; If you don't want to convert them to C and compile to
+; a whole image, flash them to this address.
+; *****************************************************************************
+Virt1 0x8020000 0x8000
+{
+    ; Init process code segment
+    Virt1_CODE 0x8020000 0x8000
+    {
+        Virt1.o                         (+RO)
+    }
+}
+; End Segment:VM **************************************************************
+
 ; End Of File *****************************************************************
 
 ; Copyright (C) Evo-Devo Instrum. All rights reserved *************************
+
 
