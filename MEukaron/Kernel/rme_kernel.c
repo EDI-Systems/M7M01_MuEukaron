@@ -4808,7 +4808,7 @@ Description : Transfer time from one thread to another. This can only be called
               -----------------------------------------------------------------
               Infinite budget transferring rules:
               -----------------------------------------------------------------
-                Nom   |   From   |     Init     |   Infinite   |    Normal
+                Inf   |   From   |     Init     |   Infinite   |    Normal
               -----------------------------------------------------------------
                  To   |   Init   |      --      |      --      |      S-
               -----------------------------------------------------------------

@@ -262,7 +262,7 @@ void __RME_A7M_Fault_Handler(struct RME_Reg_Struct* Reg)
     else if((Cur_CFSR&RME_A7M_MFSR_MMARVALID)!=0)
     {
         /* This must be a data violation. This is the only case where MMAR will be loaded */
-        RME_ASSERT((Cur_HFSR&RME_A7M_MFSR_DACCVIOL)!=0);
+        RME_ASSERT((Cur_CFSR&RME_A7M_MFSR_DACCVIOL)!=0);
         /* There is a valid MMAR, so possibly this is a benigh MPU miss. See if the fault address
          * can be found in our current page table, and if it is there, we only care about the flags */
         Inv_Top=RME_INVSTK_TOP(RME_A7M_Local.Cur_Thd);
