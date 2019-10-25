@@ -282,7 +282,7 @@ typedef rme_s32_t rme_ret_t;
 /* The initial timer endpoint */
 #define RME_BOOT_INIT_TIMER             6
 /* The initial default endpoint for all other vectors */
-#define RME_BOOT_INIT_VECT               7
+#define RME_BOOT_INIT_VECT              7
 
 /* Booting capability layout */
 #define RME_A7M_CPT                     ((struct RME_Cap_Captbl*)(RME_KMEM_VA_START))
@@ -647,7 +647,8 @@ __EXTERN__ rme_ptr_t __RME_Pgtbl_Page_Map(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_pt
 __EXTERN__ rme_ptr_t __RME_Pgtbl_Page_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos);
 __EXTERN__ rme_ptr_t __RME_Pgtbl_Pgdir_Map(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t Pos, 
                                            struct RME_Cap_Pgtbl* Pgtbl_Child, rme_ptr_t Flags);
-__EXTERN__ rme_ptr_t __RME_Pgtbl_Pgdir_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos);
+__EXTERN__ rme_ptr_t __RME_Pgtbl_Pgdir_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t Pos,
+                                             struct RME_Cap_Pgtbl* Pgtbl_Child);
 /* Lookup and walking */
 __EXTERN__ rme_ptr_t __RME_Pgtbl_Lookup(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos, rme_ptr_t* Paddr, rme_ptr_t* Flags);
 __EXTERN__ rme_ptr_t __RME_Pgtbl_Walk(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Vaddr, rme_ptr_t* Pgtbl,

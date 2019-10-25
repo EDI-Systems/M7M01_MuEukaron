@@ -222,7 +222,7 @@ void __RME_A7M_Fault_Handler(struct RME_Reg_Struct* Reg)
     rme_ptr_t Cur_MMFAR;
     rme_ptr_t Flags;
     rme_ptr_t* Stack;
-    struct RME_Proc_Struct* Proc;
+    struct RME_Cap_Proc* Proc;
     struct RME_Inv_Struct* Inv_Top;
     struct __RME_A7M_Pgtbl_Meta* Meta;
     
@@ -417,7 +417,7 @@ rme_ret_t __RME_A7M_Debug_Reg_Mod(struct RME_Cap_Captbl* Captbl, struct RME_Reg_
     rme_ptr_t Type_Ref;
     
     /* Get the capability slot */
-    RME_CAPTBL_GETCAP(Captbl,Cap_Thd,RME_CAP_THD,struct RME_Cap_Thd*,Thd_Op,Type_Ref);
+    RME_CAPTBL_GETCAP(Captbl,Cap_Thd,RME_CAP_TYPE_THD,struct RME_Cap_Thd*,Thd_Op,Type_Ref);
     
     /* See if the target thread is already binded. If no or binded to other cores, we just quit */
     CPU_Local=RME_CPU_LOCAL();
@@ -727,8 +727,7 @@ rme_ptr_t __RME_Boot(void)
 
     /* Activate the first process - This process cannot be deleted */
     RME_ASSERT(_RME_Proc_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_PROC, 
-                                  RME_BOOT_CAPTBL, RME_BOOT_PGTBL, Cur_Addr)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_PROC_SIZE);
+                                  RME_BOOT_CAPTBL, RME_BOOT_PGTBL)==0);
     
     /* Create the initial kernel function capability, and kernel memory capability */
     RME_ASSERT(_RME_Kern_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_KERN)==0);
@@ -741,14 +740,12 @@ rme_ptr_t __RME_Boot(void)
                                   RME_KMEM_FLAG_THD|RME_KMEM_FLAG_SIG|RME_KMEM_FLAG_INV)==0);
     
     /* Create the initial kernel endpoint for timer ticks */
-    RME_A7M_Local.Tick_Sig=(struct RME_Sig_Struct*)Cur_Addr;
-    RME_ASSERT(_RME_Sig_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_TIMER, Cur_Addr)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_SIG_SIZE);
+    RME_A7M_Local.Tick_Sig=(struct RME_Cap_Sig*)&(RME_A7M_CPT[RME_BOOT_INIT_TIMER]);
+    RME_ASSERT(_RME_Sig_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_TIMER)==0);
     
     /* Create the initial kernel endpoint for all other interrupts */
-    RME_A7M_Local.Vect_Sig=(struct RME_Sig_Struct*)Cur_Addr;
-    RME_ASSERT(_RME_Sig_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_VECT, Cur_Addr)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_SIG_SIZE);
+    RME_A7M_Local.Vect_Sig=(struct RME_Cap_Sig*)&(RME_A7M_CPT[RME_BOOT_INIT_VECT]);
+    RME_ASSERT(_RME_Sig_Boot_Crt(RME_A7M_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_VECT)==0);
     
     /* Clean up the region for vectors and events */
     RME_ASSERT(sizeof(struct __RME_A7M_Phys_Flags)<=512);
@@ -765,9 +762,7 @@ rme_ptr_t __RME_Boot(void)
     Size=RME_PGTBL_SIZE_TOP(0)-sizeof(rme_ptr_t);
     Size=RME_PGTBL_SIZE_NOM(0)-sizeof(rme_ptr_t);
     Size=RME_INV_SIZE;
-    Size=RME_SIG_SIZE;
     Size=RME_THD_SIZE;
-    Size=RME_PROC_SIZE;
     
     /* If generator is enabled for this project, generate what is required by the generator */
 #if(RME_GEN_ENABLE==RME_TRUE)
@@ -1593,46 +1588,51 @@ rme_ptr_t __RME_Pgtbl_Pgdir_Map(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t Po
 
 /* Begin Function:__RME_Pgtbl_Pgdir_Unmap *************************************
 Description : Unmap a page directory from the page table.
-Input       : struct RME_Cap_Pgtbl* Pgtbl_Op - The page table to operate on.
+Input       : struct RME_Cap_Pgtbl* Pgtbl_Parent - The parent page table to unmap from.
               rme_ptr_t Pos - The position in the page table.
+              struct RME_Cap_Pgtbl* Pgtbl_Child - The child page table to unmap.
 Output      : None.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgtbl_Pgdir_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos)
+rme_ptr_t __RME_Pgtbl_Pgdir_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t Pos, 
+                                  struct RME_Cap_Pgtbl* Pgtbl_Child)
 {
     rme_ptr_t* Table;
-    struct __RME_A7M_Pgtbl_Meta* Dst_Meta;
-    struct __RME_A7M_Pgtbl_Meta* Src_Meta;
+    struct __RME_A7M_Pgtbl_Meta* Parent_Meta;
+    struct __RME_A7M_Pgtbl_Meta* Child_Meta;
     
     /* Get the metadata */
-    Dst_Meta=RME_CAP_GETOBJ(Pgtbl_Op,struct __RME_A7M_Pgtbl_Meta*);
+    Parent_Meta=RME_CAP_GETOBJ(Pgtbl_Parent,struct __RME_A7M_Pgtbl_Meta*);
     
     /* Where is the entry slot */
-    if(((Pgtbl_Op->Base_Addr)&RME_PGTBL_TOP)!=0)
-        Table=RME_A7M_PGTBL_TBL_TOP((rme_ptr_t*)Dst_Meta);
+    if(((Pgtbl_Parent->Base_Addr)&RME_PGTBL_TOP)!=0)
+        Table=RME_A7M_PGTBL_TBL_TOP((rme_ptr_t*)Parent_Meta);
     else
-        Table=RME_A7M_PGTBL_TBL_NOM((rme_ptr_t*)Dst_Meta);
+        Table=RME_A7M_PGTBL_TBL_NOM((rme_ptr_t*)Parent_Meta);
 
     /* Check if we try to remove something nonexistent, or a page */
     if(((Table[Pos]&RME_A7M_PGTBL_PRESENT)==0)||((Table[Pos]&RME_A7M_PGTBL_TERMINAL)!=0))
         return RME_ERR_PGT_OPFAIL;
     
-    Src_Meta=(struct __RME_A7M_Pgtbl_Meta*)RME_A7M_PGTBL_PGD_ADDR(Table[Pos]);
+    /* See if the child page table is actually mapped there */
+    Child_Meta=(struct __RME_A7M_Pgtbl_Meta*)RME_A7M_PGTBL_PGD_ADDR(Table[Pos]);
+    if(Child_Meta!=RME_CAP_GETOBJ(Pgtbl_Child,struct __RME_A7M_Pgtbl_Meta*))
+        return RME_ERR_PGT_OPFAIL;
 
     /* Check if the directory still have child directories */
-    if(RME_A7M_PGTBL_DIRNUM(Src_Meta->Dir_Page_Count)!=0)
+    if(RME_A7M_PGTBL_DIRNUM(Parent_Meta->Dir_Page_Count)!=0)
         return RME_ERR_PGT_OPFAIL;
     
     /* We are removing a page directory. Do MPU updates if any page mapped in */
-    if(RME_A7M_PGTBL_PAGENUM(Src_Meta->Dir_Page_Count)!=0)
+    if(RME_A7M_PGTBL_PAGENUM(Parent_Meta->Dir_Page_Count)!=0)
     {
-        if(___RME_Pgtbl_MPU_Update(Src_Meta, RME_A7M_MPU_CLR)==RME_ERR_PGT_OPFAIL)
+        if(___RME_Pgtbl_MPU_Update(Parent_Meta, RME_A7M_MPU_CLR)==RME_ERR_PGT_OPFAIL)
             return RME_ERR_PGT_OPFAIL;
     }
-        
+
     Table[Pos]=0;
-    Src_Meta->Toplevel=0;
-    RME_A7M_PGTBL_DEC_DIRNUM(Dst_Meta->Dir_Page_Count);
+    Parent_Meta->Toplevel=0;
+    RME_A7M_PGTBL_DEC_DIRNUM(Parent_Meta->Dir_Page_Count);
 
     return 0;
 }

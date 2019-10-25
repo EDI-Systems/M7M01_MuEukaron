@@ -32,9 +32,11 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_ERR_CAP_QUIE                ((-8)+RME_ERR_CAP)
 /* Something involved is frozen */
 #define RME_ERR_CAP_FROZEN              ((-9)+RME_ERR_CAP)
+/* The capability is a root one and therefore cannot use removal */
+#define RME_ERR_CAP_ROOT                ((-10)+RME_ERR_CAP)
 
 /* The base of page table errors */
-#define RME_ERR_PGT                     (-10)
+#define RME_ERR_PGT                     (-100)
 /* Incorrect address */
 #define RME_ERR_PGT_ADDR                ((-1)+RME_ERR_PGT)
 /* Mapping failure */
@@ -45,7 +47,7 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_ERR_PGT_PERM                ((-4)+RME_ERR_PGT)
 
 /* The base of process/thread errors */
-#define RME_ERR_PTH                     (-20)
+#define RME_ERR_PTH                     (-200)
 /* Incorrect address */
 #define RME_ERR_PTH_PGTBL               ((-1)+RME_ERR_PTH)
 /* Conflicting operations happening at the same time */
@@ -66,7 +68,7 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_ERR_PTH_FAULT               ((-9)+RME_ERR_PTH)
 
 /* The base of signal/invocation errors */
-#define RME_ERR_SIV                     (-30)
+#define RME_ERR_SIV                     (-300)
 /* This invocation capability/signal endpoint is already active, or wrong option on receive */
 #define RME_ERR_SIV_ACT                 ((-1)+RME_ERR_SIV)
 /* This invocation succeeded, but a fault happened in the thread, and we forced a invocation return */
@@ -130,19 +132,20 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_PGTBL_FLAG_ADD_DST          (1<<1)
 /* This cap to pgtbl allows removal of pages in it */
 #define RME_PGTBL_FLAG_REM              (1<<2) 
-/* This cap to pgtbl allows to be mapped into other page tables */
-#define RME_PGTBL_FLAG_CON_CHILD        (1<<3)
+/* This cap to pgtbl allows to be mapped into other page tables as a child
+ * or destructed from other page tables as a child */
+#define RME_PGTBL_FLAG_CHILD            (1<<3)
 /* This cap to pgtbl allows accepting lower page table mappings */
 #define RME_PGTBL_FLAG_CON_PARENT       (1<<4)
 /* This cap to pgtbl allows its lower level page table mappings to be destructed */
-#define RME_PGTBL_FLAG_DES              (1<<5)
+#define RME_PGTBL_FLAG_DES_PARENT       (1<<5)
 /* This cap to pgtbl allows itself to be used in process creation */
 #define RME_PGTBL_FLAG_PROC_CRT         (1<<6)
 /* This cap to pgtbl allows itself to be used in process page table replacement */
 #define RME_PGTBL_FLAG_PROC_PGT         (1<<7)
 /* This cap to pgtbl allows all operations */
 #define RME_PGTBL_FLAG_ALL              (RME_PGTBL_FLAG_ADD_SRC|RME_PGTBL_FLAG_ADD_DST|RME_PGTBL_FLAG_REM| \
-                                         RME_PGTBL_FLAG_CON_CHILD|RME_PGTBL_FLAG_CON_PARENT|RME_PGTBL_FLAG_DES| \
+                                         RME_PGTBL_FLAG_CHILD|RME_PGTBL_FLAG_CON_PARENT|RME_PGTBL_FLAG_DES_PARENT| \
                                          RME_PGTBL_FLAG_PROC_CRT|RME_PGTBL_FLAG_PROC_PGT)
 
 /* Process */
