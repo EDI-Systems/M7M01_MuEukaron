@@ -506,8 +506,8 @@ void _RME_Svc_Handler(struct RME_Reg_Struct* Reg)
             RME_COVERAGE_MARKER();
             
             Retval=_RME_Pgtbl_Des(Captbl, Param[0] /* rme_cid_t Cap_Pgtbl_Parent */,
-                                          Param[1] /* rme_cid_t Cap_Pgtbl_Child */,
-                                          Param[2] /* rme_ptr_t Pos */);
+                                          Param[1] /* rme_ptr_t Pos */,
+                                          Param[2] /* rme_cid_t Cap_Pgtbl_Child */);
             break;
         }
         /* Process */
@@ -1026,7 +1026,7 @@ rme_ret_t _RME_Captbl_Boot_Init(rme_cid_t Cap_Captbl, rme_ptr_t Vaddr, rme_ptr_t
     Captbl=&(((struct RME_Cap_Captbl*)Vaddr)[Cap_Captbl]);
     
     /* Header init */
-    Captbl->Head.Root_Ref=0;
+    Captbl->Head.Root_Ref=1;
     Captbl->Head.Object=Vaddr;
     Captbl->Head.Flags=RME_CAPTBL_FLAG_CRT|RME_CAPTBL_FLAG_DEL|RME_CAPTBL_FLAG_FRZ|
                        RME_CAPTBL_FLAG_ADD_SRC|RME_CAPTBL_FLAG_ADD_DST|RME_CAPTBL_FLAG_REM|
@@ -1112,7 +1112,7 @@ rme_ret_t _RME_Captbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Capt
     Captbl_Crt->Entry_Num=Entry_Num;
 
     /* Establish cap */
-    RME_WRITE_RELEASE(&(Captbl->Head.Type_Stat),
+    RME_WRITE_RELEASE(&(Captbl_Crt->Head.Type_Stat),
                       RME_CAP_TYPE_STAT(RME_CAP_TYPE_CAPTBL,RME_CAP_STAT_VALID,RME_CAP_ATTR_ROOT));
 
     return 0;
@@ -1208,7 +1208,7 @@ rme_ret_t _RME_Captbl_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Cr
     Captbl_Crt->Entry_Num=Entry_Num;
 
     /* Establish cap */
-    RME_WRITE_RELEASE(&(Captbl->Head.Type_Stat),
+    RME_WRITE_RELEASE(&(Captbl_Crt->Head.Type_Stat),
                       RME_CAP_TYPE_STAT(RME_CAP_TYPE_CAPTBL,RME_CAP_STAT_VALID,RME_CAP_ATTR_ROOT));
 
     return 0;
@@ -2740,14 +2740,14 @@ Description : Unmap a child page table from the parent page table. Basically, we
               are doing the destruction of a page table.
 Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
               rme_cid_t Cap_Pgtbl_Parent - The capability to the parent page table. 2-Level.
-              rme_cid_t Cap_Pgtbl_Child - The capability to the child page table. 2-Level.
               rme_ptr_t Pos - The virtual address to position unmap the child page
                               table from. The child page table must be there.
+              rme_cid_t Cap_Pgtbl_Child - The capability to the child page table. 2-Level.
 Output      : None.
 Return      : rme_ret_t - If the mapping is successful, it will return 0; else error code.
 ******************************************************************************/
 rme_ret_t _RME_Pgtbl_Des(struct RME_Cap_Captbl* Captbl, 
-                         rme_cid_t Cap_Pgtbl_Parent, rme_cid_t Cap_Pgtbl_Child, rme_ptr_t Pos)
+                         rme_cid_t Cap_Pgtbl_Parent, rme_ptr_t Pos, rme_cid_t Cap_Pgtbl_Child)
 {
     struct RME_Cap_Pgtbl* Pgtbl_Parent;
     struct RME_Cap_Pgtbl* Pgtbl_Child;
@@ -2920,7 +2920,7 @@ rme_ret_t _RME_Kotbl_Mark(rme_ptr_t Kaddr, rme_ptr_t Size)
         }
         
         /* Check done, do the marking with CAS */
-        if(RME_COMP_SWAP(&RME_KOTBL[Start],Old_Val,Old_Val|(Start_Mask&End_Mask))==0)
+        if(RME_COMP_SWAP(&RME_KOTBL[Start],Old_Val,Old_Val|(Start_Mask&End_Mask))==RME_CASFAIL)
         {
             RME_COVERAGE_MARKER();
 
@@ -2949,7 +2949,7 @@ rme_ret_t _RME_Kotbl_Mark(rme_ptr_t Kaddr, rme_ptr_t Size)
             RME_COVERAGE_MARKER();
         }
         
-        if(RME_COMP_SWAP(&RME_KOTBL[Start],Old_Val,Old_Val|Start_Mask)==0)
+        if(RME_COMP_SWAP(&RME_KOTBL[Start],Old_Val,Old_Val|Start_Mask)==RME_CASFAIL)
         {
             RME_COVERAGE_MARKER();
 
@@ -2975,7 +2975,7 @@ rme_ret_t _RME_Kotbl_Mark(rme_ptr_t Kaddr, rme_ptr_t Size)
             {
                 RME_COVERAGE_MARKER();
                 
-                if(RME_COMP_SWAP(&RME_KOTBL[Count],Old_Val,RME_ALLBITS)==0)
+                if(RME_COMP_SWAP(&RME_KOTBL[Count],Old_Val,RME_ALLBITS)==RME_CASFAIL)
                 {
                     RME_COVERAGE_MARKER();
                     
@@ -3006,7 +3006,7 @@ rme_ret_t _RME_Kotbl_Mark(rme_ptr_t Kaddr, rme_ptr_t Size)
             {
                 RME_COVERAGE_MARKER();
 
-                if(RME_COMP_SWAP(&RME_KOTBL[End],Old_Val,Old_Val|End_Mask)==0)
+                if(RME_COMP_SWAP(&RME_KOTBL[End],Old_Val,Old_Val|End_Mask)==RME_CASFAIL)
                 {
                     RME_COVERAGE_MARKER();
 
@@ -5786,7 +5786,7 @@ rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg
             RME_COVERAGE_MARKER();
 
             /* Try to take one */
-            if(RME_COMP_SWAP(&(Sig_Op->Sig_Num),Old_Value,Old_Value-1)==0)
+            if(RME_COMP_SWAP(&(Sig_Op->Sig_Num),Old_Value,Old_Value-1)==RME_CASFAIL)
             {
                 RME_COVERAGE_MARKER();
 
@@ -5805,7 +5805,7 @@ rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg
             RME_COVERAGE_MARKER();
 
             /* Try to take all */
-            if(RME_COMP_SWAP(&(Sig_Op->Sig_Num),Old_Value,0)==0)
+            if(RME_COMP_SWAP(&(Sig_Op->Sig_Num),Old_Value,0)==RME_CASFAIL)
             {
                 RME_COVERAGE_MARKER();
 
@@ -5826,12 +5826,12 @@ rme_ret_t _RME_Sig_Rcv(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg
     {
         RME_COVERAGE_MARKER();
 
-        /* There's no value, Old_Value==0, We use this variable to try to block */
+        /* There's no value, try to block */
         if((Option==RME_RCV_BS)||(Option==RME_RCV_BM))
         {
             RME_COVERAGE_MARKER();
 
-            if(RME_COMP_SWAP((rme_ptr_t*)(&(Sig_Op->Thd)),Old_Value,(rme_ptr_t)Thd_Struct)==0)
+            if(RME_COMP_SWAP((rme_ptr_t*)(&(Sig_Op->Thd)),0,(rme_ptr_t)Thd_Struct)==RME_CASFAIL)
             {
                 RME_COVERAGE_MARKER();
 
@@ -6073,7 +6073,8 @@ rme_ret_t _RME_Inv_Act(struct RME_Cap_Captbl* Captbl,
     /* Push this invocation stub capability into the current thread's invocation stack */
     Thd_Struct=RME_CPU_LOCAL()->Cur_Thd;
     /* Try to do CAS and activate it */
-    if(RME_UNLIKELY(RME_COMP_SWAP((rme_ptr_t*)&(Inv_Struct->Active),(rme_ptr_t)Active,(rme_ptr_t)Thd_Struct)==0))
+    if(RME_UNLIKELY(RME_COMP_SWAP((rme_ptr_t*)&(Inv_Struct->Active),
+                                  (rme_ptr_t)Active,(rme_ptr_t)Thd_Struct)==RME_CASFAIL))
     {
         RME_COVERAGE_MARKER();
 

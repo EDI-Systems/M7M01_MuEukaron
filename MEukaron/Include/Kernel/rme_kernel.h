@@ -907,7 +907,7 @@ static rme_ret_t _RME_Pgtbl_Con(struct RME_Cap_Captbl* Captbl,
                                 rme_cid_t Cap_Pgtbl_Parent, rme_ptr_t Pos,
                                 rme_cid_t Cap_Pgtbl_Child, rme_ptr_t Flags_Child);
 static rme_ret_t _RME_Pgtbl_Des(struct RME_Cap_Captbl* Captbl, 
-                                rme_cid_t Cap_Pgtbl_Parent, rme_cid_t Cap_Pgtbl_Child, rme_ptr_t Pos);
+                                rme_cid_t Cap_Pgtbl_Parent, rme_ptr_t Pos, rme_cid_t Cap_Pgtbl_Child);
 
 /* Process and Thread ********************************************************/
 /* In-kernel ready-queue primitives */
