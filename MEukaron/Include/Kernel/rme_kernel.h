@@ -394,7 +394,7 @@ while(0)
 do \
 { \
     /* If this fails, then it means that somebody have deleted/removed it first */ \
-    if(RME_UNLIKELY(RME_COMP_SWAP(&((CAP)->Head.Type_Stat),(TEMP),0)==0)) \
+    if(RME_UNLIKELY(RME_COMP_SWAP(&((CAP)->Head.Type_Stat),(TEMP),0)==RME_CASFAIL)) \
         return RME_ERR_CAP_NULL; \
 } \
 while(0)

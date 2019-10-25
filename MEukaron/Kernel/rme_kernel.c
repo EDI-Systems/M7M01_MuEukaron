@@ -92,14 +92,14 @@ Add-Dst         ...           Conclusion same as Create operation.
 Remove          ...           Conclusion same as Delete operation.
 -------------------------------------------------------------------------------------------
 Use            Create         Impossible because something in that slot.
-Use            Delete         Impossible because not FROZEN. The Use can't be from other caps
+Use            Delete         Impossible because not FROZEN. The use can't be from leaf caps
                               as well because deletion will check the REFCNT, and if the REFCNT
-                              is 0, the only possibility is that the operation is originated from
-                              the other cap which is deleted before this delete. However, this is 
-                              fine because that other cap also enforce freeze - delete quiescence.
-                              It is impossible that the REFCNT will increase after the check in
-                              delete, because zero REFCNT means no other access points exist except
-                              for the frozen root cap.
+                              is 0, then the only case where an unsettled use can happen
+                              is that it happens within WCET time to REFCNT check time. This
+                              unsettled use must come from a leaf cap, as the use happened after the
+                              root gets FROZEN. This leaf cap itself, will set the REFCNT
+                              to 1, and it have no chance to freeze then remove itself before a WCET.
+                              The unsettled use case is thus impossible and there is no race.
 Use            Freeze         It is fine.
 Use            Add-Src        It is fine.
 Use            Add-Dst        Impossible because something in that slot.
@@ -1770,9 +1770,9 @@ rme_ret_t _RME_Captbl_Rem(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Re
         
         /* Remember this for refcnt operations */
         Capobj_Root=(struct RME_Cap_Struct*)(Capobj_Rem->Head.Root_Ref);
-        /* Remove the cap at last */
+        /* Remove the cap first */
         RME_CAP_REMDEL(Capobj_Rem,Type_Stat);
-        /* Check done, decrease its parent's refcnt */
+        /* Check done, decrease its parent's refcnt. This must be done at last */
         RME_FETCH_ADD(&(Capobj_Root->Head.Root_Ref), -1);
     }
     else
@@ -2905,7 +2905,7 @@ rme_ret_t _RME_Kotbl_Mark(rme_ptr_t Kaddr, rme_ptr_t Size)
     if(Start==End)
     {
         RME_COVERAGE_MARKER();
-        
+
         /* Someone already populated something here */
         Old_Val=RME_KOTBL[Start];
         if((Old_Val&(Start_Mask&End_Mask))!=0)
