@@ -356,7 +356,7 @@ do \
     /* To use deletion, we must be an unreferenced root */ \
     if(RME_UNLIKELY(((CAP)->Head.Root_Ref)!=0)) \
     { \
-        /* We defrost the cap and return. Need cas, in case two competing deletions happen */ \
+        /* Defrost the cap and return */ \
         RME_CAP_DEFROST(CAP,TEMP); \
         return RME_ERR_CAP_REFCNT; \
     } \

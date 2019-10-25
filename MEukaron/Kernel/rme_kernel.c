@@ -5343,8 +5343,7 @@ rme_ret_t _RME_Sig_Del(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rme_
     RME_CAPTBL_GETSLOT(Captbl_Op,Cap_Sig,struct RME_Cap_Sig*,Sig_Del);
     /* Delete check */
     RME_CAP_DEL_CHECK(Sig_Del,Type_Stat,RME_CAP_TYPE_SIG);
-    
-    
+
     /* See if the signal endpoint is currently used. If yes, we cannot delete it */
     if(Sig_Del->Thd!=0)
     {
@@ -5969,10 +5968,10 @@ rme_ret_t _RME_Inv_Del(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rme_
     /* Delete check */
     RME_CAP_DEL_CHECK(Inv_Del,Type_Stat,RME_CAP_TYPE_INV);
     
-    /* Get the thread */
+    /* Get the invocation */
     Inv_Struct=RME_CAP_GETOBJ(Inv_Del,struct RME_Inv_Struct*);
     
-    /* See if the invocation is currently used. If yes, we cannot delete it */
+    /* See if the invocation is currently being used. If yes, we cannot delete it */
     if(Inv_Struct->Active!=0)
     {
         RME_COVERAGE_MARKER();
