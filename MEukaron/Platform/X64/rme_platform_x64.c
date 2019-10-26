@@ -2164,11 +2164,11 @@ rme_ptr_t __RME_Pgtbl_Pgdir_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t 
     rme_ptr_t Temp;
 
     /* Are we trying to unmap the kernel space on the top level? */
-    if(((Pgtbl_Op->Base_Addr&RME_PGTBL_TOP)!=0)&&(Pos>=256))
+    if(((Pgtbl_Parent->Base_Addr&RME_PGTBL_TOP)!=0)&&(Pos>=256))
         return RME_ERR_PGT_OPFAIL;
 
     /* Get the table */
-    Parent_Table=RME_CAP_GETOBJ(Pgtbl_Op,rme_ptr_t*);
+    Parent_Table=RME_CAP_GETOBJ(Pgtbl_Parent,rme_ptr_t*);
 
     /* Make sure that there is something */
     Temp=Parent_Table[Pos];
@@ -2176,7 +2176,7 @@ rme_ptr_t __RME_Pgtbl_Pgdir_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t 
         return RME_ERR_PGT_OPFAIL;
 
     /* Is this a page? We cannot unmap pages like this */
-    if((RME_PGTBL_SIZEORD(Pgtbl_Op->Size_Num_Order)==RME_PGTBL_SIZE_4K)||((Temp&RME_X64_MMU_PDE_SUP)!=0))
+    if((RME_PGTBL_SIZEORD(Pgtbl_Parent->Size_Num_Order)==RME_PGTBL_SIZE_4K)||((Temp&RME_X64_MMU_PDE_SUP)!=0))
         return RME_ERR_PGT_OPFAIL;
 
     /* Is this child table mapped here? - check that in the future */
