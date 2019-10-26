@@ -736,8 +736,7 @@ rme_ptr_t __RME_Boot(void)
                                   RME_BOOT_INIT_KMEM,
                                   RME_KMEM_VA_START,
                                   RME_KMEM_VA_START+RME_KMEM_SIZE-1,
-                                  RME_KMEM_FLAG_CAPTBL|RME_KMEM_FLAG_PGTBL|RME_KMEM_FLAG_PROC|
-                                  RME_KMEM_FLAG_THD|RME_KMEM_FLAG_SIG|RME_KMEM_FLAG_INV)==0);
+                                  RME_KMEM_FLAG_ALL)==0);
     
     /* Create the initial kernel endpoint for timer ticks */
     RME_A7M_Local.Tick_Sig=(struct RME_Cap_Sig*)&(RME_A7M_CPT[RME_BOOT_INIT_TIMER]);
@@ -1085,7 +1084,7 @@ rme_ptr_t __RME_Pgtbl_Del_Check(struct RME_Cap_Pgtbl* Pgtbl_Op)
     /* Check if we still have a top-level */
     if(RME_CAP_GETOBJ(Pgtbl_Op,struct __RME_A7M_Pgtbl_Meta*)->Toplevel!=0)
         return RME_ERR_PGT_OPFAIL;
-    
+
     return 0;
 }
 /* End Function:__RME_Pgtbl_Del_Check ****************************************/

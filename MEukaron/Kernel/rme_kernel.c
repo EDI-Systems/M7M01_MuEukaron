@@ -100,6 +100,11 @@ Use            Delete         Impossible because not FROZEN. The use can't be fr
                               root gets FROZEN. This leaf cap itself, will set the REFCNT
                               to 1, and it have no chance to freeze then remove itself before a WCET.
                               The unsettled use case is thus impossible and there is no race.
+                              As long as all new reference to caps require an active cap passed in,
+                              there is no such race. Also, for cap creation, the header create step 
+                              must be the last step (after refcnt can be seen on all coes as we use
+                              write release semantics), and this ensures that no newly created leaf
+                              caps will be available for use before refcnt takes effect to all cores.
 Use            Freeze         It is fine.
 Use            Add-Src        It is fine.
 Use            Add-Dst        Impossible because something in that slot.
@@ -1028,9 +1033,7 @@ rme_ret_t _RME_Captbl_Boot_Init(rme_cid_t Cap_Captbl, rme_ptr_t Vaddr, rme_ptr_t
     /* Header init */
     Captbl->Head.Root_Ref=1;
     Captbl->Head.Object=Vaddr;
-    Captbl->Head.Flags=RME_CAPTBL_FLAG_CRT|RME_CAPTBL_FLAG_DEL|RME_CAPTBL_FLAG_FRZ|
-                       RME_CAPTBL_FLAG_ADD_SRC|RME_CAPTBL_FLAG_ADD_DST|RME_CAPTBL_FLAG_REM|
-                       RME_CAPTBL_FLAG_PROC_CRT|RME_CAPTBL_FLAG_PROC_CPT;
+    Captbl->Head.Flags=RME_CAPTBL_FLAG_ALL;
     
     /* Info init */
     Captbl->Entry_Num=Entry_Num;
@@ -1105,9 +1108,7 @@ rme_ret_t _RME_Captbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Capt
     /* Header init */
     Captbl_Crt->Head.Root_Ref=0;
     Captbl_Crt->Head.Object=Vaddr;
-    Captbl_Crt->Head.Flags=RME_CAPTBL_FLAG_CRT|RME_CAPTBL_FLAG_DEL|RME_CAPTBL_FLAG_FRZ|
-                           RME_CAPTBL_FLAG_ADD_SRC|RME_CAPTBL_FLAG_ADD_DST|RME_CAPTBL_FLAG_REM|
-                           RME_CAPTBL_FLAG_PROC_CRT|RME_CAPTBL_FLAG_PROC_CPT;
+    Captbl_Crt->Head.Flags=RME_CAPTBL_FLAG_ALL;
     /* Info init */
     Captbl_Crt->Entry_Num=Entry_Num;
 
@@ -1200,9 +1201,7 @@ rme_ret_t _RME_Captbl_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Cr
     /* Header init */
     Captbl_Crt->Head.Root_Ref=0;
     Captbl_Crt->Head.Object=Vaddr;
-    Captbl_Crt->Head.Flags=RME_CAPTBL_FLAG_CRT|RME_CAPTBL_FLAG_DEL|RME_CAPTBL_FLAG_FRZ|
-                           RME_CAPTBL_FLAG_ADD_SRC|RME_CAPTBL_FLAG_ADD_DST|RME_CAPTBL_FLAG_REM|
-                           RME_CAPTBL_FLAG_PROC_CRT|RME_CAPTBL_FLAG_PROC_CPT;
+    Captbl_Crt->Head.Flags=RME_CAPTBL_FLAG_ALL;
     
     /* Info init */
     Captbl_Crt->Entry_Num=Entry_Num;
@@ -1270,7 +1269,7 @@ rme_ret_t _RME_Captbl_Del(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_De
     Size=RME_CAPTBL_SIZE(Captbl_Del->Entry_Num);
 
     /* Now we can safely delete the cap */
-    RME_CAP_REMDEL(Captbl_Del,Type_Stat);
+    RME_CAP_DELETE(Captbl_Del,Type_Stat);
 
     /* Try to depopulate the area - this must be successful */
     RME_ASSERT(_RME_Kotbl_Erase(Object,Size)!=0);
@@ -1704,18 +1703,8 @@ rme_ret_t _RME_Captbl_Add(struct RME_Cap_Captbl* Captbl,
     {
         RME_COVERAGE_MARKER();
         
-        if(RME_CAP_ATTR(Capobj_Src->Head.Type_Stat)==RME_CAP_ATTR_ROOT)
-        {
-            RME_COVERAGE_MARKER();
-            
-            Capobj_Dst->Head.Root_Ref=(rme_ptr_t)Capobj_Src;
-        }
-        else
-        {
-            RME_COVERAGE_MARKER();
-            
-            Capobj_Dst->Head.Root_Ref=Capobj_Src->Head.Root_Ref;
-        }
+        /* Register root */
+        Capobj_Dst->Head.Root_Ref=RME_CAP_CONV_ROOT(Capobj_Src,rme_ptr_t);
     
         /* Increase the parent's reference count - never overflows, guaranteed by field size */
         RME_FETCH_ADD(&(((struct RME_Cap_Struct*)(Capobj_Dst->Head.Root_Ref))->Head.Root_Ref), 1);
@@ -1762,7 +1751,7 @@ rme_ret_t _RME_Captbl_Rem(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Re
     /* Removal check */
     RME_CAP_REM_CHECK(Capobj_Rem,Type_Stat);
     
-    /* If we are KERN or KMEM, we don't care about refcnt */
+    /* If we are KERN or KMEM, we don't care about parent or refcnt */
     Rem_Type=RME_CAP_TYPE(Type_Stat);
     if((Rem_Type!=RME_CAP_TYPE_KMEM)&&(Rem_Type!=RME_CAP_TYPE_KERN))
     {
@@ -1770,8 +1759,11 @@ rme_ret_t _RME_Captbl_Rem(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Re
         
         /* Remember this for refcnt operations */
         Capobj_Root=(struct RME_Cap_Struct*)(Capobj_Rem->Head.Root_Ref);
-        /* Remove the cap first */
-        RME_CAP_REMDEL(Capobj_Rem,Type_Stat);
+        
+        /* Remove the cap first - if we fail, someone must have helped us */
+        if(RME_UNLIKELY(RME_COMP_SWAP(&(Capobj_Rem->Head.Type_Stat),Type_Stat,0)==RME_CASFAIL))
+            return 0;
+        
         /* Check done, decrease its parent's refcnt. This must be done at last */
         RME_FETCH_ADD(&(Capobj_Root->Head.Root_Ref), -1);
     }
@@ -1779,8 +1771,8 @@ rme_ret_t _RME_Captbl_Rem(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Re
     {
         RME_COVERAGE_MARKER();
 
-        /* Remove the cap at last */
-        RME_CAP_REMDEL(Capobj_Rem,Type_Stat);
+        /* Helping also applies here. */
+        RME_COMP_SWAP(&(Capobj_Rem->Head.Type_Stat),Type_Stat,0);
     }
     
     return 0;
@@ -1897,9 +1889,8 @@ rme_ret_t _RME_Pgtbl_Boot_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captb
     Pgtbl_Crt->Head.Root_Ref=0;
     Pgtbl_Crt->Head.Object=Vaddr;
     /* Set the property of the page table to only act as source and creating process */
-    Pgtbl_Crt->Head.Flags=RME_PGTBL_FLAG_FULL_RANGE|
-                          RME_PGTBL_FLAG_ADD_SRC|
-                          RME_PGTBL_FLAG_PROC_CRT;
+    Pgtbl_Crt->Head.Flags=RME_PGTBL_FLAG_FULL_RANGE|RME_PGTBL_FLAG_ADD_SRC|
+                          RME_PGTBL_FLAG_PROC_CRT|RME_PGTBL_FLAG_PROC_PGT;
     
     /* Info init */
     Pgtbl_Crt->Base_Addr=Base_Addr|Top_Flag;
@@ -2111,7 +2102,7 @@ rme_ret_t _RME_Pgtbl_Boot_Con(struct RME_Cap_Captbl* Captbl,
     if(__RME_Pgtbl_Pgdir_Map(Pgtbl_Parent, Pos, Pgtbl_Child, Flags_Child)!=0)
     {
         RME_COVERAGE_MARKER();
-        
+
         return RME_ERR_PGT_MAP;
     }
     else
@@ -2119,20 +2110,10 @@ rme_ret_t _RME_Pgtbl_Boot_Con(struct RME_Cap_Captbl* Captbl,
         RME_COVERAGE_MARKER();
     }
     
-    /* Increase the child table's reference count */
-    if(RME_CAP_ATTR(Type_Stat)==RME_CAP_ATTR_LEAF)
-    {
-        RME_COVERAGE_MARKER();
-        
-        Child_Root=(struct RME_Cap_Pgtbl*)(Pgtbl_Child->Head.Root_Ref);
-    }
-    else
-    {
-        RME_COVERAGE_MARKER();
-        
-        Child_Root=Pgtbl_Child;
-    }
-
+    /* Convert to root */
+    Child_Root=RME_CAP_CONV_ROOT(Pgtbl_Child,struct RME_Cap_Pgtbl*);
+    
+    /* Increase refcnt */
     RME_FETCH_ADD(&(Child_Root->Head.Root_Ref), 1);
 
     return 0;
@@ -2254,10 +2235,7 @@ rme_ret_t _RME_Pgtbl_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
     /* Header init */
     Pgtbl_Crt->Head.Root_Ref=0;
     Pgtbl_Crt->Head.Object=Vaddr;
-    Pgtbl_Crt->Head.Flags=RME_PGTBL_FLAG_FULL_RANGE|
-                          RME_PGTBL_FLAG_ADD_SRC|RME_PGTBL_FLAG_ADD_DST|RME_PGTBL_FLAG_REM|
-                          RME_PGTBL_FLAG_CHILD|RME_PGTBL_FLAG_CON_PARENT|RME_PGTBL_FLAG_DES_PARENT|
-                          RME_PGTBL_FLAG_PROC_CRT|RME_PGTBL_FLAG_PROC_PGT;
+    Pgtbl_Crt->Head.Flags=RME_PGTBL_FLAG_FULL_RANGE|RME_PGTBL_FLAG_ALL;
     
     /* Info init */
     Pgtbl_Crt->Base_Addr=Base_Addr|Top_Flag;
@@ -2354,7 +2332,7 @@ rme_ret_t _RME_Pgtbl_Del(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rm
     }
     
     /* Now we can safely delete the cap */
-    RME_CAP_REMDEL(Pgtbl_Del,Type_Stat);
+    RME_CAP_DELETE(Pgtbl_Del,Type_Stat);
 
     /* Try to erase the area - This must be successful */
     RME_ASSERT(_RME_Kotbl_Erase(Object, Table_Size));
@@ -2715,20 +2693,10 @@ rme_ret_t _RME_Pgtbl_Con(struct RME_Cap_Captbl* Captbl,
         RME_COVERAGE_MARKER();
     }
     
-    /* Increase the child table's reference count */
-    if(RME_CAP_ATTR(Type_Stat)==RME_CAP_ATTR_LEAF)
-    {
-        RME_COVERAGE_MARKER();
-        
-        Child_Root=(struct RME_Cap_Pgtbl*)(Pgtbl_Child->Head.Root_Ref);
-    }
-    else
-    {
-        RME_COVERAGE_MARKER();
-        
-        Child_Root=Pgtbl_Child;
-    }
+    /* Convert to root */
+    Child_Root=RME_CAP_CONV_ROOT(Pgtbl_Child,struct RME_Cap_Pgtbl*);
     
+    /* Increase refcnt */
     RME_FETCH_ADD(&(Child_Root->Head.Root_Ref), 1);
 
     return 0;
@@ -2801,19 +2769,7 @@ rme_ret_t _RME_Pgtbl_Des(struct RME_Cap_Captbl* Captbl,
     }
     
     /* Decrease the child table's reference count */
-    if(RME_CAP_ATTR(Type_Stat)==RME_CAP_ATTR_LEAF)
-    {
-        RME_COVERAGE_MARKER();
-        
-        Child_Root=(struct RME_Cap_Pgtbl*)(Pgtbl_Child->Head.Root_Ref);
-    }
-    else
-    {
-        RME_COVERAGE_MARKER();
-        
-        Child_Root=Pgtbl_Child;
-    }
-
+    Child_Root=RME_CAP_CONV_ROOT(Pgtbl_Child,struct RME_Cap_Pgtbl*);
     RME_FETCH_ADD(&(Child_Root->Head.Root_Ref), -1);
 
     return 0;
@@ -3180,7 +3136,7 @@ Input       : struct RME_Cap_Captbl* Captbl - The master capability table.
               rme_cid_t Cap_Kmem - The capability to the kernel memory. 1-Level.
               rme_ptr_t Start - The start address of the kernel memory, aligned to kotbl granularity.
               rme_ptr_t End - The end address of the kernel memory, aligned to kotbl granularity, then -1.
-              rme_ptr_t Flags - The operation flags for this kernel memory.
+              rme_ptr_t Flags - The operation flags for this kernel memory. Set acoording to your needs.
 Output      : None.
 Return      : rme_ret_t - If the mapping is successful, it will return 0; else error code.
 ******************************************************************************/
@@ -3681,8 +3637,7 @@ rme_ret_t _RME_Proc_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl_Crt,
     /* Header init */
     Proc_Crt->Head.Root_Ref=0;
     Proc_Crt->Head.Object=0;
-    Proc_Crt->Head.Flags=RME_PROC_FLAG_INV|RME_PROC_FLAG_THD|
-                         RME_PROC_FLAG_CPT|RME_PROC_FLAG_PGT;
+    Proc_Crt->Head.Flags=RME_PROC_FLAG_ALL;
     
     /* Info init */
     Proc_Crt->Captbl=RME_CAP_CONV_ROOT(Captbl_Op, struct RME_Cap_Captbl*);
@@ -3713,6 +3668,9 @@ rme_ret_t _RME_Proc_Del(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rme
     struct RME_Cap_Captbl* Captbl_Op;
     struct RME_Cap_Proc* Proc_Del;
     rme_ptr_t Type_Stat;
+    /* For deletion use */
+    struct RME_Cap_Captbl* Proc_Captbl;
+    struct RME_Cap_Pgtbl* Proc_Pgtbl;
 
     /* Get the capability slot */
     RME_CAPTBL_GETCAP(Captbl,Cap_Captbl,RME_CAP_TYPE_CAPTBL,struct RME_Cap_Captbl*,Captbl_Op,Type_Stat);    
@@ -3724,13 +3682,17 @@ rme_ret_t _RME_Proc_Del(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rme
     /* Delete check */
     RME_CAP_DEL_CHECK(Proc_Del,Type_Stat,RME_CAP_TYPE_PROC);
 
-    /* Dereference caps */
-    RME_FETCH_ADD(&(Proc_Del->Captbl->Head.Root_Ref), -1);
-    RME_FETCH_ADD(&(Proc_Del->Pgtbl->Head.Root_Ref), -1);
+    /* Remember for deletion */
+    Proc_Captbl=Proc_Del->Captbl;
+    Proc_Pgtbl=Proc_Del->Pgtbl;
 
     /* Now we can safely delete the cap */
-    RME_CAP_REMDEL(Proc_Del,Type_Stat);
+    RME_CAP_DELETE(Proc_Del,Type_Stat);
 
+    /* Dereference caps */
+    RME_FETCH_ADD(&(Proc_Captbl->Head.Root_Ref), -1);
+    RME_FETCH_ADD(&(Proc_Pgtbl->Head.Root_Ref), -1);
+    
     return 0;
 }
 /* End Function:_RME_Proc_Del ************************************************/
@@ -3768,17 +3730,19 @@ rme_ret_t _RME_Proc_Cpt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Proc, rme_c
                      (rme_ptr_t)Captbl_Old, (rme_ptr_t)Captbl_New)==RME_CASFAIL)
     {
         RME_COVERAGE_MARKER();
-
+        
         return RME_ERR_PTH_CONFLICT;
     }
     else
     {
         RME_COVERAGE_MARKER();
     }
-
-    /* Release the old table and reference the new table */
-    RME_FETCH_ADD(&(Captbl_Old->Head.Root_Ref), -1);
+    
+    /* Reference new captbl */
     RME_FETCH_ADD(&(Captbl_New->Head.Root_Ref), 1);
+
+    /* Dereference the old table */
+    RME_FETCH_ADD(&(Captbl_Old->Head.Root_Ref), -1);
 
     return 0;
 }
@@ -3817,7 +3781,7 @@ rme_ret_t _RME_Proc_Pgt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Proc, rme_c
                      (rme_ptr_t)Pgtbl_Old, (rme_ptr_t)Pgtbl_New)==RME_CASFAIL)
     {
         RME_COVERAGE_MARKER();
-
+        
         return RME_ERR_PTH_CONFLICT;
     }
     else
@@ -3825,9 +3789,11 @@ rme_ret_t _RME_Proc_Pgt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Proc, rme_c
         RME_COVERAGE_MARKER();
     }
     
-    /* Release the old table and reference the new table */
-    RME_FETCH_ADD(&(Pgtbl_Old->Head.Root_Ref), -1);
+    /* Reference new pgtbl */
     RME_FETCH_ADD(&(Pgtbl_New->Head.Root_Ref), 1);
+    
+    /* Dereference the old table */
+    RME_FETCH_ADD(&(Pgtbl_Old->Head.Root_Ref), -1);
     
     return 0;
 }
@@ -4044,11 +4010,7 @@ rme_ret_t _RME_Thd_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rme_
     /* Header init */
     Thd_Crt->Head.Root_Ref=0;
     Thd_Crt->Head.Object=Vaddr;
-    Thd_Crt->Head.Flags=RME_THD_FLAG_EXEC_SET|RME_THD_FLAG_HYP_SET|
-                        RME_THD_FLAG_SCHED_CHILD|RME_THD_FLAG_SCHED_PARENT|
-                        RME_THD_FLAG_SCHED_PRIO|RME_THD_FLAG_SCHED_FREE|
-                        RME_THD_FLAG_SCHED_RCV|RME_THD_FLAG_SWT|
-                        RME_THD_FLAG_XFER_SRC|RME_THD_FLAG_XFER_DST;
+    Thd_Crt->Head.Flags=RME_THD_FLAG_ALL;
 
     /* Reference object */
     RME_FETCH_ADD(&(Thd_Struct->Sched.Proc->Head.Root_Ref), 1);
@@ -4105,7 +4067,7 @@ rme_ret_t _RME_Thd_Del(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rme_
     }
     
     /* Now we can safely delete the cap */
-    RME_CAP_REMDEL(Thd_Del,Type_Stat);
+    RME_CAP_DELETE(Thd_Del,Type_Stat);
     
     /* Is the thread using any invocation? If yes, just pop the invocation
      * stack to empty, and free all the invocation stubs. This can be virtually
@@ -4401,7 +4363,7 @@ rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Thd,
     /* Increase the reference count of the scheduler thread struct - same core */
     Thd_Sched_Struct->Sched.Sched_Ref++;
     
-    /* Binding successful. Do operations to finish this. No need to worry about other cores'
+    /* Bind successful. Do operations to finish this. No need to worry about other cores'
      * operations on this thread because this thread is already binded to this core */
     Thd_Op_Struct->Sched.Sched_Thd=Thd_Sched_Struct;
     Thd_Op_Struct->Sched.Prio=Prio;
@@ -4417,9 +4379,10 @@ rme_ret_t _RME_Thd_Sched_Bind(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Thd,
     else
     {
         RME_COVERAGE_MARKER();
-        
+
         /* Convert to root cap */
         Thd_Op_Struct->Sched.Sched_Sig=RME_CAP_CONV_ROOT(Sig_Op, struct RME_Cap_Sig*);
+        
         /* Increase refcnt */
         RME_FETCH_ADD(&(Thd_Op_Struct->Sched.Sched_Sig->Head.Root_Ref), 1);
     }
@@ -5304,8 +5267,7 @@ rme_ret_t _RME_Sig_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rme_
     /* Header init */
     Sig_Crt->Head.Root_Ref=0;
     Sig_Crt->Head.Object=0;
-    Sig_Crt->Head.Flags=RME_SIG_FLAG_SND|RME_SIG_FLAG_RCV_BS|RME_SIG_FLAG_RCV_BM|
-                        RME_SIG_FLAG_RCV_NS|RME_SIG_FLAG_RCV_NM|RME_SIG_FLAG_SCHED;
+    Sig_Crt->Head.Flags=RME_SIG_FLAG_ALL;
     
     /* Info init */
     Sig_Crt->Sig_Num=0;
@@ -5358,7 +5320,7 @@ rme_ret_t _RME_Sig_Del(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rme_
     }
     
     /* Now we can safely delete the cap */
-    RME_CAP_REMDEL(Sig_Del,Type_Stat);
+    RME_CAP_DELETE(Sig_Del,Type_Stat);
     
     return 0;
 }
@@ -5520,7 +5482,7 @@ rme_ret_t _RME_Kern_Snd(struct RME_Cap_Sig* Cap_Sig)
 
         /* The guy who blocked on it is not on our core, or nobody blocked.
          * We just faa the counter value and return */
-        if(RME_FETCH_ADD(&(Cap_Sig->Sig_Num),1)>RME_MAX_SIG_NUM)
+        if(RME_FETCH_ADD(&(Cap_Sig->Sig_Num),1)>=RME_MAX_SIG_NUM)
         {
             RME_COVERAGE_MARKER();
 
@@ -5642,7 +5604,7 @@ rme_ret_t _RME_Sig_Snd(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg
         RME_COVERAGE_MARKER();
 
         /* The guy who blocked on it is not on our core, we just faa and return */
-        if(RME_FETCH_ADD(&(Sig_Op->Sig_Num),1)>RME_MAX_SIG_NUM)
+        if(RME_FETCH_ADD(&(Sig_Op->Sig_Num),1)>=RME_MAX_SIG_NUM)
         {
             RME_COVERAGE_MARKER();
 
@@ -5928,7 +5890,7 @@ rme_ret_t _RME_Inv_Crt(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl,
     /* Header init */
     Inv_Crt->Head.Root_Ref=0;
     Inv_Crt->Head.Object=Vaddr;
-    Inv_Crt->Head.Flags=RME_INV_FLAG_SET|RME_INV_FLAG_ACT;
+    Inv_Crt->Head.Flags=RME_INV_FLAG_ALL;
     
     /* Reference object */
     RME_FETCH_ADD(&(Inv_Struct->Proc->Head.Root_Ref), 1);
@@ -5985,7 +5947,7 @@ rme_ret_t _RME_Inv_Del(struct RME_Cap_Captbl* Captbl, rme_cid_t Cap_Captbl, rme_
     }
     
     /* Now we can safely delete the cap */
-    RME_CAP_REMDEL(Inv_Del,Type_Stat);
+    RME_CAP_DELETE(Inv_Del,Type_Stat);
     
     /* Dereference the process */
     RME_FETCH_ADD(&(Inv_Struct->Proc->Head.Root_Ref), -1);

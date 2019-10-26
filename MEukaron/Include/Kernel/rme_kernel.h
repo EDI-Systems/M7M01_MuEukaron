@@ -227,7 +227,7 @@ while(0)
 
 /* Convert to root */
 #define RME_CAP_CONV_ROOT(X,TYPE)                   ((RME_CAP_ATTR((X)->Head.Type_Stat)!=RME_CAP_ATTR_ROOT)? \
-                                                     ((TYPE)((X)->Head.Root_Ref)):(X))
+                                                     ((TYPE)((X)->Head.Root_Ref)):((TYPE)(X)))
 /* Get the object */
 #define RME_CAP_GETOBJ(X,TYPE)                      ((TYPE)((X)->Head.Object))
 /* 1-layer capid addressing:
@@ -356,8 +356,9 @@ do \
     /* To use deletion, we must be an unreferenced root */ \
     if(RME_UNLIKELY(((CAP)->Head.Root_Ref)!=0)) \
     { \
-        /* Defrost the cap and return */ \
-        RME_CAP_DEFROST(CAP,TEMP); \
+        /* Defrost the cap if it is a root (likely), and return */ \
+        if(RME_LIKELY(RME_CAP_ATTR(TEMP)==RME_CAP_ATTR_ROOT)) \
+            RME_CAP_DEFROST(CAP,TEMP); \
         return RME_ERR_CAP_REFCNT; \
     } \
     /* The only case where the Root_Ref is 0 is that this is a unreferenced root cap */ \
@@ -387,10 +388,10 @@ do \
 } \
 while(0)
 
-/* Actually remove/delete the cap.
+/* Actually delete the cap.
  * CAP - The pointer to the capability slot to delete or remove.
  * TEMP - A temporary variable, for compare-and-swap's old value. */
-#define RME_CAP_REMDEL(CAP,TEMP) \
+#define RME_CAP_DELETE(CAP,TEMP) \
 do \
 { \
     /* If this fails, then it means that somebody have deleted/removed it first */ \
@@ -595,8 +596,8 @@ while(0)
 #define RME_MAX_SIG_NUM                             (RME_ALLBITS>>1)
 
 /* The kernel object sizes */
-#define RME_INV_SIZE                                sizeof(struct RME_Inv_Struct)
 #define RME_SIG_SIZE                                sizeof(struct RME_Sig_Struct)
+#define RME_INV_SIZE                                sizeof(struct RME_Inv_Struct)
 
 /* Get the top of invocation stack */
 #define RME_INVSTK_TOP(THD)                         ((struct RME_Inv_Struct*)((((THD)->Inv_Stack.Next)==&((THD)->Inv_Stack))? \

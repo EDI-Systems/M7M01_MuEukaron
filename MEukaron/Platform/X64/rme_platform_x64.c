@@ -19,7 +19,7 @@ Description : The hardware abstraction layer for ACPI compliant x86-64 machines.
               7. Consider how do we pass COMPLEX system configuration data to the INIT
                  process. We have multi-sockets and this is going to be very complex if
                  not well handled.
-              8. Look into FPU support. Also, FPU support on Cortex-M should be reexamined
+              8. Look into FPU support. Also, FPU support on x86-64 should be reexamined
                  if possible. The current FPU support is purely theoretical.
               9. Consider using the AML interpreter. Or we will not be able to detect
                  more complex peripherals.
@@ -1495,8 +1495,7 @@ rme_ptr_t __RME_Boot(void)
 
     /* Activate the first process - This process cannot be deleted */
     RME_ASSERT(_RME_Proc_Boot_Crt(RME_X64_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_PROC,
-                                  RME_BOOT_CAPTBL, RME_CAPID(RME_BOOT_TBL_PGTBL,RME_BOOT_PML4), Cur_Addr)==0);
-    Cur_Addr+=RME_KOTBL_ROUND(RME_PROC_SIZE);
+                                  RME_BOOT_CAPTBL, RME_CAPID(RME_BOOT_TBL_PGTBL,RME_BOOT_PML4))==0);
 
     /* Create the initial kernel function capability */
     RME_ASSERT(_RME_Kern_Boot_Crt(RME_X64_CPT, RME_BOOT_CAPTBL, RME_BOOT_INIT_KERN)==0);
@@ -1511,16 +1510,14 @@ rme_ptr_t __RME_Boot(void)
                                       RME_BOOT_TBL_KMEM, Count,
                                       RME_X64_Layout.Kmem1_Start[Count],
                                       RME_X64_Layout.Kmem1_Start[Count]+RME_X64_Layout.Kmem1_Size[Count],
-                                      RME_KMEM_FLAG_CAPTBL|RME_KMEM_FLAG_PGTBL|RME_KMEM_FLAG_PROC|
-                                      RME_KMEM_FLAG_THD|RME_KMEM_FLAG_SIG|RME_KMEM_FLAG_INV)==0);
+                                      RME_KMEM_FLAG_ALL)==0);
     }
     /* Create Kmem2 capability - cannot create page tables here */
     RME_ASSERT(_RME_Kmem_Boot_Crt(RME_X64_CPT,
                                   RME_BOOT_TBL_KMEM, RME_X64_KMEM1_MAXSEGS,
                                   RME_X64_Layout.Kmem2_Start,
                                   RME_X64_Layout.Kmem2_Start+RME_X64_Layout.Kmem2_Size,
-                                  RME_KMEM_FLAG_CAPTBL|RME_KMEM_FLAG_PROC|
-                                  RME_KMEM_FLAG_THD|RME_KMEM_FLAG_SIG|RME_KMEM_FLAG_INV)==0);
+                                  RME_KMEM_FLAG_CAPTBL|RME_KMEM_FLAG_THD|RME_KMEM_FLAG_INV)==0);
 
     /* Create the initial kernel endpoints for timer ticks */
     RME_ASSERT(_RME_Captbl_Boot_Crt(RME_X64_CPT, RME_BOOT_CAPTBL, RME_BOOT_TBL_TIMER, Cur_Addr, RME_X64_Num_CPU)==0);
@@ -1528,9 +1525,8 @@ rme_ptr_t __RME_Boot(void)
     for(Count=0;Count<RME_X64_Num_CPU;Count++)
     {
     	CPU_Local=__RME_X64_CPU_Local_Get_By_CPUID(Count);
-    	CPU_Local->Tick_Sig=(struct RME_Sig_Struct*)Cur_Addr;
-        RME_ASSERT(_RME_Sig_Boot_Crt(RME_X64_CPT, RME_BOOT_TBL_TIMER, Count, Cur_Addr)==0);
-        Cur_Addr+=RME_KOTBL_ROUND(RME_SIG_SIZE);
+    	CPU_Local->Tick_Sig=&(RME_GETOBJ(&(RME_X64_CPT[RME_BOOT_TBL_TIMER]), struct RME_Cap_Sig*)[Count]);
+        RME_ASSERT(_RME_Sig_Boot_Crt(RME_X64_CPT, RME_BOOT_TBL_TIMER, Count)==0);
     }
 
     /* Create the initial kernel endpoints for all other interrupts */
@@ -1539,9 +1535,8 @@ rme_ptr_t __RME_Boot(void)
     for(Count=0;Count<RME_X64_Num_CPU;Count++)
     {
     	CPU_Local=__RME_X64_CPU_Local_Get_By_CPUID(Count);
-    	CPU_Local->Vect_Sig=(struct RME_Sig_Struct*)Cur_Addr;
-        RME_ASSERT(_RME_Sig_Boot_Crt(RME_X64_CPT, RME_BOOT_TBL_INT, Count, Cur_Addr)==0);
-        Cur_Addr+=RME_KOTBL_ROUND(RME_SIG_SIZE);
+    	CPU_Local->Vect_Sig=&(RME_GETOBJ(&(RME_X64_CPT[RME_BOOT_TBL_INT]), struct RME_Cap_Sig*)[Count]);
+        RME_ASSERT(_RME_Sig_Boot_Crt(RME_X64_CPT, RME_BOOT_TBL_INT, Count)==0);
     }
 
     /* Activate the first thread, and set its priority */
@@ -1562,12 +1557,8 @@ rme_ptr_t __RME_Boot(void)
     /* Print sizes and halt */
     RME_PRINTK_S("\r\nThread object size: ");
     RME_PRINTK_I(sizeof(struct RME_Thd_Struct)/sizeof(rme_ptr_t));
-    RME_PRINTK_S("\r\nProcess object size: ");
-    RME_PRINTK_I(sizeof(struct RME_Proc_Struct)/sizeof(rme_ptr_t));
     RME_PRINTK_S("\r\nInvocation object size: ");
     RME_PRINTK_I(sizeof(struct RME_Inv_Struct)/sizeof(rme_ptr_t));
-    RME_PRINTK_S("\r\nEndpoint object size: ");
-    RME_PRINTK_I(sizeof(struct RME_Sig_Struct)/sizeof(rme_ptr_t));
 
     /* Initialize the timer and start its interrupt routing */
     RME_PRINTK_S("\r\nTimer init\r\n");

@@ -107,23 +107,6 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_CAPTBL_FLAG_ALL             (RME_CAPTBL_FLAG_CRT|RME_CAPTBL_FLAG_DEL|RME_CAPTBL_FLAG_FRZ| \
                                          RME_CAPTBL_FLAG_ADD_SRC|RME_CAPTBL_FLAG_ADD_DST|RME_CAPTBL_FLAG_REM| \
                                          RME_CAPTBL_FLAG_PROC_CRT|RME_CAPTBL_FLAG_PROC_CPT)
-    
-/* Kernel memory */
-/* This cap to kernel memory allows creation of captbl */
-#define RME_KMEM_FLAG_CAPTBL            (1<<0)
-/* This cap to kernel memory allows creation of pgtbl */
-#define RME_KMEM_FLAG_PGTBL             (1<<1)
-/* This cap to kernel memory allows creation of process */
-#define RME_KMEM_FLAG_PROC              (1<<2)
-/* This cap to kernel memory allows creation of thread */
-#define RME_KMEM_FLAG_THD               (1<<3)
-/* This cap to kernel memory allows creation of signals */
-#define RME_KMEM_FLAG_SIG               (1<<4)
-/* This cap to kernel memory allows creation of invocation */
-#define RME_KMEM_FLAG_INV               (1<<5)
-/* This cap to kernel memory allows all operations */
-#define RME_KMEM_FLAG_ALL               (RME_KMEM_FLAG_CAPTBL|RME_KMEM_FLAG_PGTBL|RME_KMEM_FLAG_PROC| \
-                                         RME_KMEM_FLAG_THD|RME_KMEM_FLAG_SIG|RME_KMEM_FLAG_INV)
 
 /* Page table */
 /* This cap to pgtbl allows delegating pages in it */
@@ -147,6 +130,19 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_PGTBL_FLAG_ALL              (RME_PGTBL_FLAG_ADD_SRC|RME_PGTBL_FLAG_ADD_DST|RME_PGTBL_FLAG_REM| \
                                          RME_PGTBL_FLAG_CHILD|RME_PGTBL_FLAG_CON_PARENT|RME_PGTBL_FLAG_DES_PARENT| \
                                          RME_PGTBL_FLAG_PROC_CRT|RME_PGTBL_FLAG_PROC_PGT)
+
+/* Kernel memory */
+/* This cap to kernel memory allows creation of captbl */
+#define RME_KMEM_FLAG_CAPTBL            (1<<0)
+/* This cap to kernel memory allows creation of pgtbl */
+#define RME_KMEM_FLAG_PGTBL             (1<<1)
+/* This cap to kernel memory allows creation of thread */
+#define RME_KMEM_FLAG_THD               (1<<2)
+/* This cap to kernel memory allows creation of invocation */
+#define RME_KMEM_FLAG_INV               (1<<3)
+/* This cap to kernel memory allows all operations */
+#define RME_KMEM_FLAG_ALL               (RME_KMEM_FLAG_CAPTBL|RME_KMEM_FLAG_PGTBL| \
+                                         RME_KMEM_FLAG_THD|RME_KMEM_FLAG_INV)
 
 /* Process */
 /* This cap to process allows creating invocation stubs in it */
@@ -186,16 +182,6 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_THD_FLAG_ALL                (RME_THD_FLAG_EXEC_SET|RME_THD_FLAG_HYP_SET|RME_THD_FLAG_SCHED_CHILD| \
                                          RME_THD_FLAG_SCHED_PARENT|RME_THD_FLAG_SCHED_PRIO|RME_THD_FLAG_SCHED_FREE| \
                                          RME_THD_FLAG_SCHED_RCV|RME_THD_FLAG_XFER_SRC|RME_THD_FLAG_XFER_DST|RME_THD_FLAG_SWT)
-
-/* Invocation */
-/* This cap to invocation allows setting parameters for it */
-#define RME_INV_FLAG_SET                (1<<0)
-/* This cap to invocation allows activating it */
-#define RME_INV_FLAG_ACT                (1<<1)
-/* The return operation does not need a flag, nor does it need a capability */
-/* This cap to invocation allows all operations */
-#define RME_INV_FLAG_ALL                (RME_INV_FLAG_SET|RME_INV_FLAG_ACT)
-
 /* Signal */
 /* This cap to signal endpoint allows sending to it */
 #define RME_SIG_FLAG_SND                (1<<0)
@@ -214,6 +200,15 @@ Description : The header of the RME RTOS. This header defines the error codes,
 #define RME_SIG_FLAG_SCHED              (1<<5)
 /* This cap to signal endpoint allows all operations */
 #define RME_SIG_FLAG_ALL                (RME_SIG_FLAG_SND|RME_SIG_FLAG_RCV|RME_SIG_FLAG_SCHED)
+
+/* Invocation */
+/* This cap to invocation allows setting parameters for it */
+#define RME_INV_FLAG_SET                (1<<0)
+/* This cap to invocation allows activating it */
+#define RME_INV_FLAG_ACT                (1<<1)
+/* The return operation does not need a flag, nor does it need a capability */
+/* This cap to invocation allows all operations */
+#define RME_INV_FLAG_ALL                (RME_INV_FLAG_SET|RME_INV_FLAG_ACT)
 /* End Operation Flags *******************************************************/
 
 /* Special Definitions *******************************************************/
