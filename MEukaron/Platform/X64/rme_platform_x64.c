@@ -2162,7 +2162,6 @@ rme_ptr_t __RME_Pgtbl_Pgdir_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t 
     rme_ptr_t* Parent_Table;
     rme_ptr_t* Child_Table;
     rme_ptr_t Temp;
-    rme_ptr_t 
 
     /* Are we trying to unmap the kernel space on the top level? */
     if(((Pgtbl_Op->Base_Addr&RME_PGTBL_TOP)!=0)&&(Pos>=256))
