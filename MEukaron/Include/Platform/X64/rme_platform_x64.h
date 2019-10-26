@@ -246,7 +246,7 @@ static INLINE rme_ptr_t _RME_X64_MSB_Get(rme_ptr_t Val)
 #define RME_X64_KSTACK_ORDER                 (20)
 /* Get the actual table positions */
 #define RME_X64_PGTBL_TBL_NOM(X)             (X)
-#define RME_X64_PGTBL_TBL_TOP(X)             (X)       
+#define RME_X64_PGTBL_TBL_TOP(X)             (X)
 
 /* Device types */
 #define RME_X64_MADT_LAPIC                   0

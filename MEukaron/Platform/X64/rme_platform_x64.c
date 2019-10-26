@@ -2150,16 +2150,19 @@ rme_ptr_t __RME_Pgtbl_Pgdir_Map(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t Po
 
 /* Begin Function:__RME_Pgtbl_Pgdir_Unmap *************************************
 Description : Unmap a page directory from the page table.
-Input       : struct RME_Cap_Pgtbl* Pgtbl_Op - The page table to operate on.
+Input       : struct RME_Cap_Pgtbl* Pgtbl_Parent - The parent page table to unmap from.
               rme_ptr_t Pos - The position in the page table.
+              struct RME_Cap_Pgtbl* Pgtbl_Child - The child page table to unmap.
 Output      : None.
 Return      : rme_ptr_t - If successful, 0; else RME_ERR_PGT_OPFAIL.
 ******************************************************************************/
-rme_ptr_t __RME_Pgtbl_Pgdir_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos)
+rme_ptr_t __RME_Pgtbl_Pgdir_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Parent, rme_ptr_t Pos,
+                                  struct RME_Cap_Pgtbl* Pgtbl_Child)
 {
     rme_ptr_t* Parent_Table;
     rme_ptr_t* Child_Table;
     rme_ptr_t Temp;
+    rme_ptr_t 
 
     /* Are we trying to unmap the kernel space on the top level? */
     if(((Pgtbl_Op->Base_Addr&RME_PGTBL_TOP)!=0)&&(Pos>=256))
@@ -2176,6 +2179,8 @@ rme_ptr_t __RME_Pgtbl_Pgdir_Unmap(struct RME_Cap_Pgtbl* Pgtbl_Op, rme_ptr_t Pos)
     /* Is this a page? We cannot unmap pages like this */
     if((RME_PGTBL_SIZEORD(Pgtbl_Op->Size_Num_Order)==RME_PGTBL_SIZE_4K)||((Temp&RME_X64_MMU_PDE_SUP)!=0))
         return RME_ERR_PGT_OPFAIL;
+
+    /* Is this child table mapped here? - check that in the future */
 
     Child_Table=(rme_ptr_t*)Temp;
     /* Try to unmap it. Use CAS just in case */
