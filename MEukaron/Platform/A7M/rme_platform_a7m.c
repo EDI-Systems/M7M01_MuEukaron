@@ -650,9 +650,21 @@ rme_ptr_t __RME_Low_Level_Init(void)
     Temp&=~0xFFFF0700U;
     Temp|=(0x5FAU<<16)|(RME_A7M_NVIC_GROUPING<<8);
     RME_A7M_SCB_AIRCR=Temp;
-  
-    /* Set the priority of timer, svc and faults to the lowest */
-    __RME_A7M_NVIC_Set_Prio(RME_A7M_IRQN_SVCALL, 0xFF);
+    
+    /* Set the priority of timer and faults to the lowest, SVC is slightly higher.
+     * If not, ARMv7-M may pend the SVC, thus causing the following execution:
+     * 1> SVC is triggered but not yet in execution.
+     * 2> SysTick or some other random vector comes in.
+     * 3> Processor choose to respond to SysTick first.
+     * 4> There is a context switch in SysTick, we switch to another thread.
+     * 5> SVC is now processed on the new thread rather than the calling thread.
+     * This MUST be avoided, thus we place SVC at a higher priority?
+     * All vectors that have a higher priority than SVC shall not call any RME
+     * kernel functions; for those who can call kernel functions, they must be
+     * placed at a priority smaller than 0x80 and the user needs to guarantee
+     * that they never preempt each other. To make things 100% work, place all
+     * those vectors that may send from kernel to priority 0xFF. */
+    __RME_A7M_NVIC_Set_Prio(RME_A7M_IRQN_SVCALL, 0x80);
     __RME_A7M_NVIC_Set_Prio(RME_A7M_IRQN_PENDSV, 0xFF);
     __RME_A7M_NVIC_Set_Prio(RME_A7M_IRQN_SYSTICK, 0xFF);
     __RME_A7M_NVIC_Set_Prio(RME_A7M_IRQN_BUSFAULT, 0xFF);
