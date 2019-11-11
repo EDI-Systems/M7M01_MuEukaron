@@ -65,6 +65,8 @@ __heap_limit
     EXPORT              ___RME_A7M_MPU_Set
     ;A full barrier
     EXPORT              __RME_A7M_Barrier
+    ;Full system reset
+    EXPORT              __RME_A7M_Reset
 ;/* End Exports **************************************************************/
 
 ;/* Begin Imports ************************************************************/
@@ -978,11 +980,30 @@ __RME_Enable_Int
 ;Return      : None.
 ;*****************************************************************************/
 __RME_A7M_Barrier
-    ;Enable all interrupts.
+    ;Full data & instruction barrier.
     DSB                 SY
     ISB                 SY
     BX                  LR
 ;/* End Function:__RME_A7M_Barrier *******************************************/
+
+;/* Begin Function:__RME_A7M_Reset ********************************************
+;Description : A full system reset.
+;Input       : None.
+;Output      : None.    
+;Return      : None.
+;*****************************************************************************/
+__RME_A7M_Reset
+    ;Disable all interrupts
+    CPSID               I
+    ;ARMv7-M Standard system reset
+    LDR                 R0,=0xE000ED0C
+    LDR                 R1,=0x05FA0004
+    STR                 R1,[R0]
+    DSB                 SY
+    ISB                 SY
+    ;Deadloop
+    B                   .
+;/* End Function:__RME_A7M_Reset *********************************************/
 
 ;/* Begin Function:__RME_A7M_Wait_Int *****************************************
 ;Description : Wait until a new interrupt comes, to save power.

@@ -44,6 +44,9 @@ Description: The configuration file for STM32F767IG.
 #define RME_A7M_NVIC_GROUPING                           (RME_A7M_NVIC_GROUPING_P2S6)
 /* What is the Systick value? */
 #define RME_A7M_SYSTICK_VAL                             (2160000)
+
+/* What is the external crystal frequency? */
+#define RME_A7M_STM32F767IG_XTAL                        (25)
 /* What are the PLL values? */
 #define RME_A7M_STM32F767IG_PLLM                        (25)
 #define RME_A7M_STM32F767IG_PLLN                        (432)
@@ -58,6 +61,8 @@ Description: The configuration file for STM32F767IG.
 #define RME_A7M_MPU_REGIONS                             (8)
 /* What is the FPU type? */
 #define RME_A7M_FPU_TYPE                                (RME_A7M_FPU_FPV5_DP)
+/* What is the vector number excluding system vectors? */
+#define RME_A7M_VECT_NUM                                (110)
 
 /* Interrupts ****************************************************************/
 #define  WWDG_IRQHandler                                IRQ0_Handler        /* Window WatchDog */                                       
@@ -278,6 +283,7 @@ Description: The configuration file for STM32F767IG.
 #define RME_A7M_USART1_CR2                              RME_A7M_REG(0x40011004)
 #define RME_A7M_USART1_CR3                              RME_A7M_REG(0x40011008)
 #define RME_A7M_USART1_BRR                              RME_A7M_REG(0x4001100C)
+#define RME_A7M_USART1_ISR                              RME_A7M_REG(0x4001101C)
 #define RME_A7M_USART1_TDR                              RME_A7M_REG(0x40011028)
 
 #define RME_A7M_USART1_CR1_UE                           (1U<<0)
@@ -286,8 +292,6 @@ Description: The configuration file for STM32F767IG.
 #define RME_A7M_LOW_LEVEL_PREINIT() \
 do \
 { \
-    /* Set CP10&11 full access */ \
-    RME_A7M_SCB_CPACR|=((3UL<<(10*2))|(3UL<<(11*2))); \
     /* Set HSION bit */ \
     RME_A7M_RCC_CR|=0x00000001; \
     /* Reset CFGR register */ \
@@ -354,7 +358,7 @@ do \
     __RME_A7M_Barrier(); \
     \
     /* Cache/Flash ART enabling */ \
-    __RME_A7M_Enable_Cache(); \
+    __RME_A7M_Cache_Init(); \
     RME_A7M_FLASH_ACR|=RME_A7M_FLASH_ACR_ARTEN; \
     RME_A7M_FLASH_ACR|=RME_A7M_FLASH_ACR_PRFTEN; \
     \
@@ -381,10 +385,34 @@ while(0)
 #define RME_A7M_PUTCHAR(CHAR) \
 do \
 { \
-    __RME_A7M_ITM_Putchar((rme_s8_t)(CHAR)); \
+    RME_A7M_USART1_TDR=(CHAR); \
+    while((RME_A7M_USART1_ISR&0x40)==0); \
 } \
 while(0)
+    
+/* Prefetcher state set and get */
+#define RME_A7M_PRFTH_STATE_SET(STATE) \
+do \
+{ \
+    if((STATE)!=0) \
+    { \
+        RME_A7M_FLASH_ACR|=RME_A7M_FLASH_ACR_ARTEN; \
+        RME_A7M_FLASH_ACR|=RME_A7M_FLASH_ACR_PRFTEN; \
+    } \
+    else \
+    { \
+        RME_A7M_FLASH_ACR&=~RME_A7M_FLASH_ACR_PRFTEN; \
+        RME_A7M_FLASH_ACR&=~RME_A7M_FLASH_ACR_ARTEN; \
+    } \
+} \
+while(0)
+    
+#define RME_A7M_PRFTH_STATE_GET() ((RME_A7M_FLASH_ACR&RME_A7M_FLASH_ACR_ARTEN)!=0)
 /* End Defines ***************************************************************/
+
+/* Structs *******************************************************************/
+
+/* End Structs ***************************************************************/
 
 /* End Of File ***************************************************************/
 

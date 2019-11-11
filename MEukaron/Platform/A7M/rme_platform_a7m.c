@@ -122,66 +122,6 @@ rme_ptr_t __RME_A7M_Fetch_And(rme_ptr_t* Ptr, rme_ptr_t Operand)
 }
 /* End Function:__RME_A7M_Fetch_And ******************************************/
 
-/* Begin Function:__RME_A7M_Enable_Cache **************************************
-Description : Enable the I-Cache and D-Cache for the core. This will only be called
-              for processors that actually have cache.
-Input       : None.
-Output      : None.
-Return      : None.
-******************************************************************************/
-void __RME_A7M_Enable_Cache(void)
-{
-    rme_ptr_t Sets;
-    rme_ptr_t Ways;
-    rme_ptr_t Set_Cnt;
-    rme_ptr_t Way_Cnt;
-    
-    /* I-Cache */
-    __RME_A7M_Barrier();
-    RME_A7M_SCB_ICALLU=0;
-    RME_A7M_SCB_CCR|=RME_A7M_SCB_CCR_IC;
-    __RME_A7M_Barrier();
-    
-    /* D-Cache */
-    RME_A7M_SCB_CSSELR=0;
-    __RME_A7M_Barrier();
-
-    Sets=RME_A7M_SCB_CCSIDR_SETS(RME_A7M_SCB_CCSIDR);
-    Ways=RME_A7M_SCB_CCSIDR_WAYS(RME_A7M_SCB_CCSIDR);
-    
-    for(Set_Cnt=0;Set_Cnt<=Sets;Set_Cnt++)
-    {
-        for(Way_Cnt=0;Way_Cnt<=Ways;Way_Cnt++)
-        {
-            RME_A7M_SCB_DCISW=RME_A7M_SCB_DCISW_INV(Set_Cnt,Way_Cnt);
-            __RME_A7M_Barrier();
-        }
-    }
-    
-    RME_A7M_SCB_CCR|=RME_A7M_SCB_CCR_DC;
-    __RME_A7M_Barrier();
-}
-/* End Function:__RME_A7M_Enable_Cache ***************************************/
-
-/* Begin Function:__RME_A7M_ITM_Putchar ***************************************
-Description : Output a character through ITM.
-Input       : char Char - The character to print.
-Output      : None.
-Return      : None.
-******************************************************************************/
-void __RME_A7M_ITM_Putchar(char Char)
-{
-    /* ITM enabled & ITM port 0 enabled */
-    if(((RME_A7M_ITM_TCR&RME_A7M_ITM_TCR_ITMENA)!=0)&&((RME_A7M_ITM_TER&0x01)!=0UL))
-    {
-        while(RME_A7M_ITM_PORT(0)==0)
-            __RME_A7M_Barrier();
-        
-        *((volatile char*)&RME_A7M_ITM_PORT(0))=Char;
-    }
-}
-/* End Function:__RME_A7M_ITM_Putchar ****************************************/
-
 /* Begin Function:__RME_Putchar ***********************************************
 Description : Output a character to console. In Cortex-M, under most circumstances, 
               we should use the ITM for such outputs.
@@ -398,26 +338,719 @@ void __RME_A7M_Vect_Handler(struct RME_Reg_Struct* Reg, rme_ptr_t Vect_Num)
 }
 /* End Function:__RME_A7M_Vect_Handler ***************************************/
 
+/* Begin Function:__RME_A7M_Pgtbl_Entry_Mod ***********************************
+Description : Consult or modify the page table attributes. ARMv7-M only allows 
+              consulting page table attributes but does not allow modifying them,
+              because there are no architecture-specific flags.
+Input       : struct RME_Cap_Captbl* Captbl - The current capability table.
+              rme_cid_t Cap_Pgtbl - The capability to the top-level page table to consult.
+              rme_ptr_t Vaddr - The virtual address to consult.
+              rme_ptr_t Type - The consult type, see manual for details.
+Output      : None.
+Return      : rme_ret_t - If successful, the flags; else RME_ERR_KERN_OPFAIL.
+******************************************************************************/
+rme_ret_t __RME_A7M_Pgtbl_Entry_Mod(struct RME_Cap_Captbl* Captbl, 
+                                    rme_cid_t Cap_Pgtbl, rme_ptr_t Vaddr, rme_ptr_t Type)
+{
+    struct RME_Cap_Pgtbl* Pgtbl_Op;
+    rme_ptr_t Type_Stat;
+    rme_ptr_t Size_Order;
+    rme_ptr_t Num_Order;
+    rme_ptr_t Flags;
+    
+    /* Get the capability slot */
+    RME_CAPTBL_GETCAP(Captbl,Cap_Pgtbl,RME_CAP_TYPE_PGTBL,struct RME_Cap_Pgtbl*,Pgtbl_Op,Type_Stat);
+    
+    if(__RME_Pgtbl_Walk(Pgtbl_Op, Vaddr, 0, 0, 0, &Size_Order, &Num_Order, &Flags)!=0)
+        return RME_ERR_KERN_OPFAIL;
+    
+    switch(Type)
+    {
+        case RME_A7M_KERN_PGTBL_ENTRY_MOD_GET_FLAGS:return Flags;
+        case RME_A7M_KERN_PGTBL_ENTRY_MOD_GET_SIZEORDER:return Size_Order;
+        case RME_A7M_KERN_PGTBL_ENTRY_MOD_GET_NUMORDER:return Num_Order;
+        default:break;
+    }
+    
+    return RME_ERR_KERN_OPFAIL;
+}
+/* End Function:__RME_A7M_Pgtbl_Entry_Mod ************************************/
+
+/* Begin Function:__RME_A7M_Int_Local_Mod *************************************
+Description : Consult or modify the local interrupt controller's vector state.
+Input       : rme_ptr_t Int_Num - The interrupt number to consult or modify.
+              rme_ptr_t Operation - The operation to conduct.
+              rme_ptr_t Param - The parameter, could be state or priority.
+Output      : None.
+Return      : rme_ret_t - If successful, 0 or the desired value; else RME_ERR_KERN_OPFAIL.
+******************************************************************************/
+rme_ret_t __RME_A7M_Int_Local_Mod(rme_ptr_t Int_Num, rme_ptr_t Operation, rme_ptr_t Param)
+{
+    if(Int_Num>=RME_A7M_VECT_NUM)
+        return RME_ERR_KERN_OPFAIL;
+    
+    switch(Operation)
+    {
+        case RME_A7M_KERN_INT_LOCAL_MOD_GET_STATE:
+        {
+            if((RME_A7M_NVIC_ISER(Int_Num)&RME_POW2(Int_Num&0x1F))==0)
+                return 0;
+            else
+                return 1;
+        }
+        case RME_A7M_KERN_INT_LOCAL_MOD_SET_STATE:
+        {
+            if(Param==0)
+                RME_A7M_NVIC_ICER(Int_Num)=RME_POW2(Int_Num&0x1F);
+            else
+                RME_A7M_NVIC_ISER(Int_Num)=RME_POW2(Int_Num&0x1F);
+            
+            return 0;
+        }
+        case RME_A7M_KERN_INT_LOCAL_MOD_GET_PRIO:
+        {
+            return RME_A7M_NVIC_IPR(Int_Num);
+        }
+        case RME_A7M_KERN_INT_LOCAL_MOD_SET_PRIO:
+        {
+            if(Param>0xFF)
+                return RME_ERR_KERN_OPFAIL;
+            
+            RME_A7M_NVIC_IPR(Int_Num)=Param;
+            return 0;
+        }
+        default:break;
+    }
+    
+    return RME_ERR_KERN_OPFAIL;
+}
+/* End Function:__RME_A7M_Int_Local_Mod **************************************/
+
+/* Begin Function:__RME_A7M_Int_Local_Trig ************************************
+Description : Trigger a CPU's local event source.
+Input       : rme_ptr_t CPUID - The ID of the CPU. For ARMv7-M, this must be 0.
+              rme_ptr_t Evt_Num - The event ID.
+Output      : None.
+Return      : rme_ret_t - If successful, 0; else RME_ERR_KERN_OPFAIL.
+******************************************************************************/
+rme_ret_t __RME_A7M_Int_Local_Trig(rme_ptr_t CPUID, rme_ptr_t Int_Num)
+{
+    if(CPUID!=0)
+        return RME_ERR_KERN_OPFAIL;
+
+    if(Int_Num>=RME_A7M_VECT_NUM)
+        return RME_ERR_KERN_OPFAIL;
+    
+    /* Trigger the interrupt */
+    RME_A7M_SCNSCB_STIR=Int_Num;
+
+    return 0;
+}
+/* End Function:__RME_A7M_Int_Local_Trig *************************************/
+
+/* Begin Function:__RME_A7M_Evt_Local_Trig ************************************
+Description : Trigger a CPU's local event source.
+Input       : struct RME_Reg_Struct* Reg - The current register set.
+              rme_ptr_t CPUID - The ID of the CPU. For ARMv7-M, this must be 0.
+              rme_ptr_t Evt_Num - The event ID.
+Output      : None.
+Return      : rme_ret_t - If successful, 0; else RME_ERR_KERN_OPFAIL.
+******************************************************************************/
+rme_ret_t __RME_A7M_Evt_Local_Trig(struct RME_Reg_Struct* Reg, rme_ptr_t CPUID, rme_ptr_t Evt_Num)
+{
+    if(CPUID!=0)
+        return RME_ERR_KERN_OPFAIL;
+
+    if(Evt_Num>=RME_A7M_MAX_EVTS)
+        return RME_ERR_KERN_OPFAIL;
+
+    __RME_A7M_Set_Flag(RME_A7M_EVT_FLAG_ADDR, Evt_Num);
+    
+    if(_RME_Kern_Snd(RME_A7M_Local.Vect_Sig)!=0)
+        return RME_ERR_KERN_OPFAIL;
+    
+    /* Set return value first before we really do context switch */
+    __RME_Set_Syscall_Retval(Reg,0);
+    
+    _RME_Kern_High(Reg, &RME_A7M_Local);
+
+    return 0;
+}
+/* End Function:__RME_A7M_Evt_Local_Trig *************************************/
+
+/* Begin Function:__RME_A7M_Cache_Mod *****************************************
+Description : Modify cache state. We do not make assumptions about cache contents.
+Input       : rme_ptr_t Cache_ID - The ID of the cache to enable, disable or consult.
+              rme_ptr_t Operation - The operation to perform.
+              rme_ptr_t Param - The parameter.
+Output      : None.
+Return      : If successful, 0; else RME_ERR_KERN_OPFAIL.
+******************************************************************************/
+rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID, rme_ptr_t Operation, rme_ptr_t Param)
+{
+    rme_ptr_t CLIDR;
+    rme_ptr_t Sets;
+    rme_ptr_t Ways;
+    rme_ptr_t Set_Cnt;
+    rme_ptr_t Way_Cnt;
+
+    if(Cache_ID==RME_A7M_KERN_CACHE_ICACHE)
+    {
+        CLIDR=RME_A7M_SCB_CLIDR&0x07;
+        
+        /* Do we have instruction cache at all? */
+        if((CLIDR!=0x01)&&(CLIDR!=0x03))
+            return RME_ERR_KERN_OPFAIL;
+
+        RME_A7M_SCB_CSSELR=1;
+        __RME_A7M_Barrier();
+        Sets=RME_A7M_SCB_CCSIDR_SETS(RME_A7M_SCB_CCSIDR);
+        Ways=RME_A7M_SCB_CCSIDR_WAYS(RME_A7M_SCB_CCSIDR);
+        if((Sets==0)||(Ways==0))
+            return RME_ERR_KERN_OPFAIL;
+        
+        /* Are we doing get or set? */
+        if(Operation==RME_A7M_KERN_CACHE_MOD_SET_STATE)
+        {
+            /* Enable or disable? */
+            if(Param==RME_A7M_KERN_CACHE_STATE_ENABLE)
+            {
+                /* Is it already enabled? */
+                if((RME_A7M_SCB_CCR&RME_A7M_SCB_CCR_IC)!=0)
+                    return 0;
+                
+                /* Invalidate contents, then enable I-cache */
+                __RME_A7M_Barrier();
+                RME_A7M_SCNSCB_ICALLU=0;
+                RME_A7M_SCB_CCR|=RME_A7M_SCB_CCR_IC;
+                __RME_A7M_Barrier();
+                return 0;
+            }
+            else if(Param==RME_A7M_KERN_CACHE_STATE_DISABLE)
+            {
+                /* Is it already disabled? */
+                if((RME_A7M_SCB_CCR&RME_A7M_SCB_CCR_IC)==0)
+                    return 0;
+                
+                /* Disable I-cache */
+                __RME_A7M_Barrier();
+                RME_A7M_SCB_CCR&=~RME_A7M_SCB_CCR_IC;
+                __RME_A7M_Barrier();
+                /* Invalidate contents */
+                RME_A7M_SCNSCB_ICALLU=0;
+                __RME_A7M_Barrier();
+                return 0;
+            }
+            else
+                return RME_ERR_KERN_OPFAIL;
+        }
+        else if(Operation==RME_A7M_KERN_CACHE_MOD_GET_STATE)
+        {
+            if((RME_A7M_SCB_CCR&RME_A7M_SCB_CCR_IC)!=0)
+                return RME_A7M_KERN_CACHE_STATE_ENABLE;
+            else
+                return RME_A7M_KERN_CACHE_STATE_DISABLE;
+        }
+        else
+            return RME_ERR_KERN_OPFAIL;
+    }
+    else if(Cache_ID==RME_A7M_KERN_CACHE_DCACHE)
+    {
+        CLIDR=RME_A7M_SCB_CLIDR&0x07;
+
+        /* Do we have data cache at all? */
+        if((CLIDR!=0x02)&&(CLIDR!=0x03)&&(CLIDR!=0x04))
+            return RME_ERR_KERN_OPFAIL;
+        
+        RME_A7M_SCB_CSSELR=0;
+        __RME_A7M_Barrier();
+        Sets=RME_A7M_SCB_CCSIDR_SETS(RME_A7M_SCB_CCSIDR);
+        Ways=RME_A7M_SCB_CCSIDR_WAYS(RME_A7M_SCB_CCSIDR);
+        if((Sets==0)||(Ways==0))
+            return RME_ERR_KERN_OPFAIL;
+        
+        /* Are we doing get or set? */
+        if(Operation==RME_A7M_KERN_CACHE_MOD_SET_STATE)
+        {
+            /* Enable or disable? */
+            if(Param==RME_A7M_KERN_CACHE_STATE_ENABLE)
+            {
+                /* Is it already enabled? */
+                if((RME_A7M_SCB_CCR&RME_A7M_SCB_CCR_DC)!=0)
+                    return 0;
+        
+                /* Invalidate contents, then enable D-cache */
+                for(Set_Cnt=0;Set_Cnt<=Sets;Set_Cnt++)
+                {
+                    for(Way_Cnt=0;Way_Cnt<=Ways;Way_Cnt++)
+                    {
+                        RME_A7M_SCNSCB_DCISW=RME_A7M_SCNSCB_DC(Set_Cnt,Way_Cnt);
+                        __RME_A7M_Barrier();
+                    }
+                }
+                RME_A7M_SCB_CCR|=RME_A7M_SCB_CCR_DC;
+                __RME_A7M_Barrier();
+                return 0;
+            }
+            else if(Param==RME_A7M_KERN_CACHE_STATE_DISABLE)
+            {
+                /* Is it already disabled? */
+                if((RME_A7M_SCB_CCR&RME_A7M_SCB_CCR_DC)==0)
+                    return 0;
+                
+                /* Stop new allocations to D-cache NOW (by disabling interrupts) */
+                __RME_Disable_Int();
+                RME_A7M_SCB_CCR&=~RME_A7M_SCB_CCR_DC;
+                __RME_A7M_Barrier();
+                
+                /* Read again because old stale value may be in D-cache */
+                Sets=RME_A7M_SCB_CCSIDR_SETS(RME_A7M_SCB_CCSIDR);
+                Ways=RME_A7M_SCB_CCSIDR_WAYS(RME_A7M_SCB_CCSIDR);
+                
+                /* Clean and invalidate contents */
+                for(Set_Cnt=0;Set_Cnt<=Sets;Set_Cnt++)
+                {
+                    for(Way_Cnt=0;Way_Cnt<=Ways;Way_Cnt++)
+                    {
+                        RME_A7M_SCNSCB_DCCISW=RME_A7M_SCNSCB_DC(Set_Cnt,Way_Cnt);
+                        __RME_A7M_Barrier();
+                    }
+                }
+                
+                /* Reenable interrupts */
+                __RME_Enable_Int();
+                return 0;
+            }
+            else
+                return RME_ERR_KERN_OPFAIL;
+        }
+        else
+            return RME_ERR_KERN_OPFAIL;
+    }
+    else if(Cache_ID==RME_A7M_KERN_CACHE_BTAC)
+    {
+        /* Whether a BTAC exists is implementation defined. Cortex-M3 and Cortex-M4
+         * does not have a BTAC but Cortex-M7 have. We need to see what processor
+         * this is and decide whether this operation makes sense. */
+        if(((RME_A7M_SCB_CPUID>>4)&0x0FFF)!=0x0C27)
+            return RME_ERR_KERN_OPFAIL;
+        
+        /* Are we doing get or set? */
+        if(Operation==RME_A7M_KERN_CACHE_MOD_SET_STATE)
+        {
+            /* Enable or disable? */
+            if(Param==RME_A7M_KERN_CACHE_STATE_ENABLE)
+            {
+                /* Is it already enabled? */
+                if((RME_A7M_SCNSCB_ACTLR&RME_A7M_SCNSCB_ACTLR_DISBTAC)==0)
+                    return 0;
+                
+                /* Enable BTAC */
+                RME_A7M_SCNSCB_ACTLR&=~RME_A7M_SCNSCB_ACTLR_DISBTAC;
+                return 0;
+            }
+            else if(Param==RME_A7M_KERN_CACHE_STATE_DISABLE)
+            {
+                /* Is it already disabled? */
+                if((RME_A7M_SCNSCB_ACTLR&RME_A7M_SCNSCB_ACTLR_DISBTAC)!=0)
+                    return 0;
+                
+                /* Disable BTAC */
+                RME_A7M_SCNSCB_ACTLR|=RME_A7M_SCNSCB_ACTLR_DISBTAC;
+                return 0;
+            }
+            else
+                return RME_ERR_KERN_OPFAIL;
+        }
+        else if(Operation==RME_A7M_KERN_CACHE_MOD_GET_STATE)
+        {
+            /* Is it already enabled? */
+            if((RME_A7M_SCNSCB_ACTLR&RME_A7M_SCNSCB_ACTLR_DISBTAC)==0)
+                return RME_A7M_KERN_CACHE_STATE_ENABLE;
+            else
+                return RME_A7M_KERN_CACHE_STATE_DISABLE;
+        }
+    }
+    
+    /* Invalid cache specified */
+    return RME_ERR_KERN_OPFAIL;
+}
+/* End Function:__RME_A7M_Cache_Mod ******************************************/
+
+/* Begin Function:__RME_A7M_Cache_Maint ***************************************
+Description : Do cache maintenance. Integrity of the data is always protected.
+Input       : rme_ptr_t Cache_ID - The ID of the cache to do maintenance on.
+              rme_ptr_t Operation - The maintenance operation to perform.
+              rme_ptr_t Param - The parameter for that operation.
+Output      : None.
+Return      : If successful, 0; else RME_ERR_KERN_OPFAIL.
+******************************************************************************/
+rme_ret_t __RME_A7M_Cache_Maint(rme_ptr_t Cache_ID, rme_ptr_t Operation, rme_ptr_t Param)
+{
+    rme_ptr_t CLIDR;
+    rme_ptr_t Sets;
+    rme_ptr_t Ways;
+    rme_ptr_t Set_Cnt;
+    rme_ptr_t Way_Cnt;
+
+    if(Cache_ID==RME_A7M_KERN_CACHE_ICACHE)
+    {
+        CLIDR=RME_A7M_SCB_CLIDR&0x07;
+        
+        /* Do we have instruction cache at all? */
+        if((CLIDR!=0x01)&&(CLIDR!=0x03))
+            return RME_ERR_KERN_OPFAIL;
+
+        RME_A7M_SCB_CSSELR=1;
+        __RME_A7M_Barrier();
+        Sets=RME_A7M_SCB_CCSIDR_SETS(RME_A7M_SCB_CCSIDR);
+        Ways=RME_A7M_SCB_CCSIDR_WAYS(RME_A7M_SCB_CCSIDR);
+        if((Sets==0)||(Ways==0))
+            return RME_ERR_KERN_OPFAIL;
+
+        /* What maintenance operation are we gonna do? */
+        if((Operation!=RME_A7M_KERN_CACHE_INV_ALL)&&(Operation!=RME_A7M_KERN_CACHE_INV_ADDR))
+            return RME_ERR_KERN_OPFAIL;
+
+        /* I-cache maintenance does not care if the cache is enabled */
+        if(Operation==RME_A7M_KERN_CACHE_INV_ALL)
+            RME_A7M_SCNSCB_ICALLU=0;
+        else
+            RME_A7M_SCNSCB_ICIMVAU=Param;
+        
+        __RME_A7M_Barrier();
+        return 0;
+    }
+    else if(Cache_ID==RME_A7M_KERN_CACHE_DCACHE)
+    {
+        CLIDR=RME_A7M_SCB_CLIDR&0x07;
+
+        /* Do we have data cache at all? */
+        if((CLIDR!=0x02)&&(CLIDR!=0x03)&&(CLIDR!=0x04))
+            return RME_ERR_KERN_OPFAIL;
+        
+        RME_A7M_SCB_CSSELR=0;
+        __RME_A7M_Barrier();
+        Sets=RME_A7M_SCB_CCSIDR_SETS(RME_A7M_SCB_CCSIDR);
+        Ways=RME_A7M_SCB_CCSIDR_WAYS(RME_A7M_SCB_CCSIDR);
+        if((Sets==0)||(Ways==0))
+            return RME_ERR_KERN_OPFAIL;
+        
+        /* Is it enabled? If yes, we cannot do invalidate, because we may lose data */
+        if((RME_A7M_SCB_CCR&RME_A7M_SCB_CCR_DC)!=0)
+        {
+            if((Operation>=RME_A7M_KERN_CACHE_INV_ALL)&&(Operation<=RME_A7M_KERN_CACHE_INV_SETWAY))
+                return RME_ERR_KERN_OPFAIL;
+        }
+
+        /* Do whatever we are instructed to do */
+        switch(Operation)
+        {
+            /* All */
+            case RME_A7M_KERN_CACHE_CLEAN_ALL: /* Fall-through */
+            case RME_A7M_KERN_CACHE_INV_ALL:
+            case RME_A7M_KERN_CACHE_CLEAN_INV_ALL:
+            {
+                for(Set_Cnt=0;Set_Cnt<=Sets;Set_Cnt++)
+                {
+                    for(Way_Cnt=0;Way_Cnt<=Ways;Way_Cnt++)
+                    {
+                        /* Compiler LICM */
+                        if(Operation==RME_A7M_KERN_CACHE_CLEAN_ALL)
+                            RME_A7M_SCNSCB_DCCSW=RME_A7M_SCNSCB_DC(Set_Cnt,Way_Cnt);
+                        else if(Operation==RME_A7M_KERN_CACHE_INV_ALL)
+                            RME_A7M_SCNSCB_DCISW=RME_A7M_SCNSCB_DC(Set_Cnt,Way_Cnt);
+                        else
+                            RME_A7M_SCNSCB_DCCISW=RME_A7M_SCNSCB_DC(Set_Cnt,Way_Cnt);
+                        __RME_A7M_Barrier();
+                    }
+                }
+                
+                return 0;
+            }
+            /* By address */
+            case RME_A7M_KERN_CACHE_CLEAN_ADDR:{RME_A7M_SCNSCB_DCCMVAC=Param;return 0;}
+            case RME_A7M_KERN_CACHE_INV_ADDR:{RME_A7M_SCNSCB_DCIMVAC=Param;return 0;}
+            case RME_A7M_KERN_CACHE_CLEAN_INV_ADDR:{RME_A7M_SCNSCB_DCCIMVAC=Param;return 0;}
+            /* By set */
+            case RME_A7M_KERN_CACHE_CLEAN_SET: /* Fall-through */
+            case RME_A7M_KERN_CACHE_INV_SET:
+            case RME_A7M_KERN_CACHE_CLEAN_INV_SET:
+            {
+                if(Param>=Sets)
+                    return RME_ERR_KERN_OPFAIL;
+                
+                for(Way_Cnt=0;Way_Cnt<=Ways;Way_Cnt++)
+                {
+                    /* Compiler LICM */
+                    if(Operation==RME_A7M_KERN_CACHE_CLEAN_SET)
+                        RME_A7M_SCNSCB_DCCSW=RME_A7M_SCNSCB_DC(Param,Way_Cnt);
+                    else if(Operation==RME_A7M_KERN_CACHE_INV_SET)
+                        RME_A7M_SCNSCB_DCISW=RME_A7M_SCNSCB_DC(Param,Way_Cnt);
+                    else
+                        RME_A7M_SCNSCB_DCCISW=RME_A7M_SCNSCB_DC(Param,Way_Cnt);
+                    __RME_A7M_Barrier();
+                }
+                
+                return 0;
+            }
+            /* By way */
+            case RME_A7M_KERN_CACHE_CLEAN_WAY: /* Fall-through */
+            case RME_A7M_KERN_CACHE_INV_WAY:
+            case RME_A7M_KERN_CACHE_CLEAN_INV_WAY:
+            {
+                if(Param>=Ways)
+                    return RME_ERR_KERN_OPFAIL;
+                
+                for(Set_Cnt=0;Set_Cnt<=Sets;Set_Cnt++)
+                {
+                    /* Compiler LICM */
+                    if(Operation==RME_A7M_KERN_CACHE_CLEAN_WAY)
+                        RME_A7M_SCNSCB_DCCSW=RME_A7M_SCNSCB_DC(Set_Cnt,Param);
+                    else if(Operation==RME_A7M_KERN_CACHE_INV_WAY)
+                        RME_A7M_SCNSCB_DCISW=RME_A7M_SCNSCB_DC(Set_Cnt,Param);
+                    else
+                        RME_A7M_SCNSCB_DCCISW=RME_A7M_SCNSCB_DC(Set_Cnt,Param);
+                    __RME_A7M_Barrier();
+                }
+                
+                return 0; 
+            }
+            /* By set and way */
+            case RME_A7M_KERN_CACHE_CLEAN_SETWAY: /* Fall-through */
+            case RME_A7M_KERN_CACHE_INV_SETWAY:
+            case RME_A7M_KERN_CACHE_CLEAN_INV_SETWAY:
+            {
+                Set_Cnt=RME_PARAM_D1(Param);
+                Way_Cnt=RME_PARAM_D0(Param);
+                
+                if((Set_Cnt>=Sets)||(Way_Cnt>=Ways))
+                    return RME_ERR_KERN_OPFAIL;
+                
+                if(Operation==RME_A7M_KERN_CACHE_CLEAN_SETWAY)
+                    RME_A7M_SCNSCB_DCCSW=RME_A7M_SCNSCB_DC(Set_Cnt,Way_Cnt);
+                else if(Operation==RME_A7M_KERN_CACHE_INV_SETWAY)
+                    RME_A7M_SCNSCB_DCISW=RME_A7M_SCNSCB_DC(Set_Cnt,Way_Cnt);
+                else
+                    RME_A7M_SCNSCB_DCCISW=RME_A7M_SCNSCB_DC(Set_Cnt,Way_Cnt);
+                __RME_A7M_Barrier();
+                
+                return 0;
+            }
+            default:break;
+        }
+
+        /* Must be wrong operation */
+        return RME_ERR_KERN_OPFAIL;
+    }
+    else if(Cache_ID==RME_A7M_KERN_CACHE_BTAC)
+    {
+        if(Operation!=RME_A7M_KERN_CACHE_INV_ALL)
+            return RME_ERR_KERN_OPFAIL;
+        
+        /* This may take effect or not... */
+        RME_A7M_SCNSCB_BPIALL=0;
+        
+        return 0;
+    }
+    
+    /* Invalid cache specified */
+    return RME_ERR_KERN_OPFAIL;
+}
+/* End Function:__RME_A7M_Cache_Maint ****************************************/
+
+/* Begin Function:__RME_A7M_Prfth_Mod *****************************************
+Description : Modify prefetcher state. Due to the fact that the ARMv7-M architectural
+              prefetch is usually permanently enabled, this only controls manufacturer
+              specific Flash accelerators. The accelerator is always enabled at
+              power-on, and the only reason you want to fiddle with it is to save power.
+Input       : rme_ptr_t Prfth_ID - The ID of the prefetcher to enable, disable or consult.
+              rme_ptr_t Operation - The operation to perform.
+              rme_ptr_t Param - The parameter.
+Output      : None.
+Return      : If successful, 0; else RME_ERR_KERN_OPFAIL.
+******************************************************************************/
+rme_ret_t __RME_A7M_Prfth_Mod(rme_ptr_t Prfth_ID, rme_ptr_t Operation, rme_ptr_t Param)
+{
+    if(Prfth_ID!=0)
+        return RME_ERR_KERN_OPFAIL;
+    
+    if(Operation==RME_A7M_KERN_PRFTH_MOD_SET_STATE)
+    {
+        if(Param==RME_A7M_KERN_PRFTH_STATE_ENABLE)
+            RME_A7M_PRFTH_STATE_SET(1);
+        else if(Param==RME_A7M_KERN_PRFTH_STATE_DISABLE)
+            RME_A7M_PRFTH_STATE_SET(0);
+        else
+            return RME_ERR_KERN_OPFAIL;
+        
+        __RME_A7M_Barrier();
+        return 0;
+    }
+    else if(Operation==RME_A7M_KERN_PRFTH_MOD_GET_STATE)
+    {
+        if(RME_A7M_PRFTH_STATE_GET()==0)
+            return RME_A7M_KERN_PRFTH_STATE_DISABLE;
+        else
+            return RME_A7M_KERN_PRFTH_STATE_ENABLE;
+    }
+    
+    return RME_ERR_KERN_OPFAIL;
+}
+/* End Function:__RME_A7M_Prfth_Mod ******************************************/
+
+/* Begin Function:__RME_A7M_Perf_CPU_Func *************************************
+Description : CPU feature detection for ARMv7-M.
+Input       : struct RME_Reg_Struct* Reg - The current register set.
+              rme_ptr_t Freg_ID - The capability to the thread to consult.
+Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler.
+Return      : rme_ret_t - If successful, 0; if a negative value, failed.
+******************************************************************************/
+rme_ret_t __RME_A7M_Perf_CPU_Func(struct RME_Reg_Struct* Reg, rme_ptr_t Freg_ID)
+{
+    switch(Freg_ID)
+    {
+        case RME_A7M_KERN_CPU_FUNC_CPUID:           {Reg->R6=RME_A7M_SCB_CPUID;break;}
+        case RME_A7M_KERN_CPU_FUNC_ID_PFR0:         {Reg->R6=RME_A7M_SCB_ID_PFR0;break;}
+        case RME_A7M_KERN_CPU_FUNC_ID_PFR1:         {Reg->R6=RME_A7M_SCB_ID_PFR1;break;}
+        case RME_A7M_KERN_CPU_FUNC_ID_DFR0:         {Reg->R6=RME_A7M_SCB_ID_DFR0;break;}
+        case RME_A7M_KERN_CPU_FUNC_ID_AFR0:         {Reg->R6=RME_A7M_SCB_ID_AFR0;break;}
+        case RME_A7M_KERN_CPU_FUNC_ID_MMFR0:        {Reg->R6=RME_A7M_SCB_ID_MMFR0;break;}
+        case RME_A7M_KERN_CPU_FUNC_ID_MMFR1:        {Reg->R6=RME_A7M_SCB_ID_MMFR1;break;}
+        case RME_A7M_KERN_CPU_FUNC_ID_MMFR2:        {Reg->R6=RME_A7M_SCB_ID_MMFR2;break;}
+        case RME_A7M_KERN_CPU_FUNC_ID_MMFR3:        {Reg->R6=RME_A7M_SCB_ID_MMFR3;break;}
+        case RME_A7M_KERN_CPU_FUNC_ID_ISAR0:        {Reg->R6=RME_A7M_SCB_ID_ISAR0;break;}
+        case RME_A7M_KERN_CPU_FUNC_ID_ISAR1:        {Reg->R6=RME_A7M_SCB_ID_ISAR1;break;}
+        case RME_A7M_KERN_CPU_FUNC_ID_ISAR2:        {Reg->R6=RME_A7M_SCB_ID_ISAR2;break;}
+        case RME_A7M_KERN_CPU_FUNC_ID_ISAR3:        {Reg->R6=RME_A7M_SCB_ID_ISAR3;break;}
+        case RME_A7M_KERN_CPU_FUNC_ID_ISAR4:        {Reg->R6=RME_A7M_SCB_ID_ISAR4;break;}
+        case RME_A7M_KERN_CPU_FUNC_ID_ISAR5:        {Reg->R6=RME_A7M_SCB_ID_ISAR5;break;}
+        case RME_A7M_KERN_CPU_FUNC_CLIDR:           {Reg->R6=RME_A7M_SCB_CLIDR;break;}
+        case RME_A7M_KERN_CPU_FUNC_CTR:             {Reg->R6=RME_A7M_SCB_CTR;break;}
+        case RME_A7M_KERN_CPU_FUNC_ICACHE_CCSIDR:
+        {
+            RME_A7M_SCB_CSSELR=1;
+            __RME_A7M_Barrier();
+            Reg->R6=RME_A7M_SCB_CCSIDR;
+            break;
+        }
+        case RME_A7M_KERN_CPU_FUNC_DCACHE_CCSIDR:
+        {
+            RME_A7M_SCB_CSSELR=0;
+            __RME_A7M_Barrier();
+            Reg->R6=RME_A7M_SCB_CCSIDR;
+            break;
+        }
+        case RME_A7M_KERN_CPU_FUNC_MPU_TYPE:        {Reg->R6=RME_A7M_MPU_CTRL;break;}
+        case RME_A7M_KERN_CPU_FUNC_MVFR0:           {Reg->R6=RME_A7M_SCNSCB_MVFR0;break;}
+        case RME_A7M_KERN_CPU_FUNC_MVFR1:           {Reg->R6=RME_A7M_SCNSCB_MVFR1;break;}
+        case RME_A7M_KERN_CPU_FUNC_MVFR2:           {Reg->R6=RME_A7M_SCNSCB_MVFR2;break;}
+        case RME_A7M_KERN_CPU_FUNC_PID0:            {Reg->R6=RME_A7M_SCNSCB_PID0;break;}
+        case RME_A7M_KERN_CPU_FUNC_PID1:            {Reg->R6=RME_A7M_SCNSCB_PID1;break;}
+        case RME_A7M_KERN_CPU_FUNC_PID2:            {Reg->R6=RME_A7M_SCNSCB_PID2;break;}
+        case RME_A7M_KERN_CPU_FUNC_PID3:            {Reg->R6=RME_A7M_SCNSCB_PID3;break;}
+        case RME_A7M_KERN_CPU_FUNC_PID4:            {Reg->R6=RME_A7M_SCNSCB_PID4;break;}
+        case RME_A7M_KERN_CPU_FUNC_PID5:            {Reg->R6=RME_A7M_SCNSCB_PID5;break;}
+        case RME_A7M_KERN_CPU_FUNC_PID6:            {Reg->R6=RME_A7M_SCNSCB_PID6;break;}
+        case RME_A7M_KERN_CPU_FUNC_PID7:            {Reg->R6=RME_A7M_SCNSCB_PID7;break;}
+        case RME_A7M_KERN_CPU_FUNC_CID0:            {Reg->R6=RME_A7M_SCNSCB_CID0;break;}
+        case RME_A7M_KERN_CPU_FUNC_CID1:            {Reg->R6=RME_A7M_SCNSCB_CID1;break;}
+        case RME_A7M_KERN_CPU_FUNC_CID2:            {Reg->R6=RME_A7M_SCNSCB_CID2;break;}
+        case RME_A7M_KERN_CPU_FUNC_CID3:            {Reg->R6=RME_A7M_SCNSCB_CID3;break;}
+        default:                                    {return RME_ERR_KERN_OPFAIL;}
+    }
+
+    return 0;
+}
+/* End Function:__RME_A7M_Perf_CPU_Func **************************************/
+
+/* Begin Function:__RME_A7M_Perf_Mon_Mod **************************************
+Description : Read or write performance monitor settings. This only works for
+              a single performance counter, CYCCNT, and only works for enabling 
+              or disabling operations.
+Input       : rme_ptr_t Perf_ID - The performance monitor identifier.
+              rme_ptr_t Operation - The operation to perform.
+              rme_ptr_t Param - An extra parameter.
+Output      : None.
+Return      : rme_ret_t - If successful, the desired value; if a negative value, failed.
+******************************************************************************/
+rme_ret_t __RME_A7M_Perf_Mon_Mod(rme_ptr_t Perf_ID, rme_ptr_t Operation, rme_ptr_t Param)
+{
+    if(Perf_ID!=RME_A7M_KERN_PERF_CYCLE_CYCCNT)
+        return RME_ERR_KERN_OPFAIL;
+
+    /* Do we have this counter at all? */
+    if((RME_A7M_DWT_CTRL&RME_A7M_DWT_CTRL_NOCYCCNT)!=0)
+        return RME_ERR_KERN_OPFAIL;
+    
+    if(Operation==RME_A7M_KERN_PERF_STATE_GET)
+        return RME_A7M_DWT_CTRL&RME_A7M_DWT_CTRL_CYCCNTENA;
+    else if(Operation==RME_A7M_KERN_PERF_STATE_SET)
+    {
+        if(Param==RME_A7M_KERN_PERF_STATE_DISABLE)
+            RME_A7M_DWT_CTRL&=~RME_A7M_DWT_CTRL_CYCCNTENA;
+        else if(Param==RME_A7M_KERN_PERF_STATE_ENABLE)
+            RME_A7M_DWT_CTRL|=RME_A7M_DWT_CTRL_CYCCNTENA;
+        else
+            return RME_ERR_KERN_OPFAIL;
+
+        return 0;
+    }
+    
+    return RME_ERR_KERN_OPFAIL;
+}
+/* End Function:__RME_A7M_Perf_Mon_Mod ***************************************/
+
+/* Begin Function:__RME_A7M_Perf_Cycle_Mod ************************************
+Description : Cycle performance counter read or write for ARMv7-M. Only supports
+              CYCCNT register.
+Input       : struct RME_Reg_Struct* Reg - The current register set.
+              rme_ptr_t Cycle_ID - The performance counter to read or write.
+Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler.
+Return      : rme_ret_t - If successful, 0; if a negative value, failed.
+******************************************************************************/
+rme_ret_t __RME_A7M_Perf_Cycle_Mod(struct RME_Reg_Struct* Reg, rme_ptr_t Cycle_ID, 
+                                   rme_ptr_t Operation, rme_ptr_t Value)
+{
+    if(Cycle_ID!=RME_A7M_KERN_PERF_CYCLE_CYCCNT)
+        return RME_ERR_KERN_OPFAIL;
+    
+    /* Do we have this counter at all? */
+    if((RME_A7M_DWT_CTRL&RME_A7M_DWT_CTRL_NOCYCCNT)!=0)
+        return RME_ERR_KERN_OPFAIL;
+
+    /* We do have the counter, access it */
+    if(Operation==RME_A7M_KERN_PERF_VAL_GET)
+        Reg->R6=RME_A7M_DWT_CYCCNT;
+    else if(Operation==RME_A7M_KERN_PERF_VAL_SET)
+        RME_A7M_DWT_CYCCNT=Value;
+    else
+        return RME_ERR_KERN_OPFAIL;
+
+    return 0;
+}
+/* End Function:__RME_A7M_Perf_Cycle_Mod *************************************/
+
 /* Begin Function:__RME_A7M_Debug_Reg_Mod *************************************
-Description : Debug register modification implementation for ARMv7-M.
+Description : Debug regular register modification implementation for ARMv7-M.
 Input       : struct RME_Cap_Captbl* Captbl - The current capability table.
               struct RME_Reg_Struct* Reg - The current register set.
               rme_cid_t Cap_Thd - The capability to the thread to consult.
               rme_ptr_t Operation - The operation, e.g. which register to read or write.
+              rme_ptr_t Value - The value to write into the register.
 Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler.
 Return      : rme_ret_t - If successful, 0; if a negative value, failed.
 ******************************************************************************/
 rme_ret_t __RME_A7M_Debug_Reg_Mod(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg, 
-                                  rme_cid_t Cap_Thd, rme_ptr_t Operation)
+                                  rme_cid_t Cap_Thd, rme_ptr_t Operation, rme_ptr_t Value)
 {
     struct RME_Cap_Thd* Thd_Op;
     struct RME_Thd_Struct* Thd_Struct;
-    /* These are used to free the thread */
     struct RME_CPU_Local* CPU_Local;
-    rme_ptr_t Type_Ref;
+    rme_ptr_t Type_Stat;
     
     /* Get the capability slot */
-    RME_CAPTBL_GETCAP(Captbl,Cap_Thd,RME_CAP_TYPE_THD,struct RME_Cap_Thd*,Thd_Op,Type_Ref);
+    RME_CAPTBL_GETCAP(Captbl,Cap_Thd,RME_CAP_TYPE_THD,struct RME_Cap_Thd*,Thd_Op,Type_Stat);
     
     /* See if the target thread is already binded. If no or binded to other cores, we just quit */
     CPU_Local=RME_CPU_LOCAL();
@@ -428,66 +1061,124 @@ rme_ret_t __RME_A7M_Debug_Reg_Mod(struct RME_Cap_Captbl* Captbl, struct RME_Reg_
     switch(Operation)
     {
         /* Register read/write */
-        case RME_KERN_DEBUG_REG_MOD_SP_READ:Reg->R6=Thd_Struct->Cur_Reg->Reg.SP;break;
-        case RME_KERN_DEBUG_REG_MOD_SP_WRITE:Thd_Struct->Cur_Reg->Reg.SP=Reg->R6;break;
-        case RME_KERN_DEBUG_REG_MOD_R4_READ:Reg->R6=Thd_Struct->Cur_Reg->Reg.R4;break;
-        case RME_KERN_DEBUG_REG_MOD_R4_WRITE:Thd_Struct->Cur_Reg->Reg.R4=Reg->R6;break;
-        case RME_KERN_DEBUG_REG_MOD_R5_READ:Reg->R6=Thd_Struct->Cur_Reg->Reg.R5;break;
-        case RME_KERN_DEBUG_REG_MOD_R5_WRITE:Thd_Struct->Cur_Reg->Reg.R5=Reg->R6;break;
-        case RME_KERN_DEBUG_REG_MOD_R6_READ:Reg->R6=Thd_Struct->Cur_Reg->Reg.R6;break;
-        case RME_KERN_DEBUG_REG_MOD_R6_WRITE:Thd_Struct->Cur_Reg->Reg.R6=Reg->R6;break;
-        case RME_KERN_DEBUG_REG_MOD_R7_READ:Reg->R6=Thd_Struct->Cur_Reg->Reg.R7;break;
-        case RME_KERN_DEBUG_REG_MOD_R7_WRITE:Thd_Struct->Cur_Reg->Reg.R7=Reg->R6;break;
-        case RME_KERN_DEBUG_REG_MOD_R8_READ:Reg->R6=Thd_Struct->Cur_Reg->Reg.R8;break;
-        case RME_KERN_DEBUG_REG_MOD_R8_WRITE:Thd_Struct->Cur_Reg->Reg.R8=Reg->R6;break;
-        case RME_KERN_DEBUG_REG_MOD_R9_READ:Reg->R6=Thd_Struct->Cur_Reg->Reg.R9;break;
-        case RME_KERN_DEBUG_REG_MOD_R9_WRITE:Thd_Struct->Cur_Reg->Reg.R9=Reg->R6;break;
-        case RME_KERN_DEBUG_REG_MOD_R10_READ:Reg->R6=Thd_Struct->Cur_Reg->Reg.R10;break;
-        case RME_KERN_DEBUG_REG_MOD_R10_WRITE:Thd_Struct->Cur_Reg->Reg.R10=Reg->R6;break;
-        case RME_KERN_DEBUG_REG_MOD_R11_READ:Reg->R6=Thd_Struct->Cur_Reg->Reg.R11;break;
-        case RME_KERN_DEBUG_REG_MOD_R11_WRITE:Thd_Struct->Cur_Reg->Reg.R11=Reg->R6;break;
-        case RME_KERN_DEBUG_REG_MOD_LR_READ:Reg->R6=Thd_Struct->Cur_Reg->Reg.LR;break;
-        /* case RME_KERN_DEBUG_REG_MOD_LR_WRITE: LR write is not allowed, may cause arbitrary kernel execution */
+        case RME_A7M_KERN_DEBUG_REG_MOD_SP_GET:     {Reg->R6=Thd_Struct->Cur_Reg->Reg.SP;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_SP_SET:     {Thd_Struct->Cur_Reg->Reg.SP=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_R4_GET:     {Reg->R6=Thd_Struct->Cur_Reg->Reg.R4;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_R4_SET:     {Thd_Struct->Cur_Reg->Reg.R4=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_R5_GET:     {Reg->R6=Thd_Struct->Cur_Reg->Reg.R5;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_R5_SET:     {Thd_Struct->Cur_Reg->Reg.R5=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_R6_GET:     {Reg->R6=Thd_Struct->Cur_Reg->Reg.R6;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_R6_SET:     {Thd_Struct->Cur_Reg->Reg.R6=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_R7_GET:     {Reg->R6=Thd_Struct->Cur_Reg->Reg.R7;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_R7_SET:     {Thd_Struct->Cur_Reg->Reg.R7=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_R8_GET:     {Reg->R6=Thd_Struct->Cur_Reg->Reg.R8;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_R8_SET:     {Thd_Struct->Cur_Reg->Reg.R8=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_R9_GET:     {Reg->R6=Thd_Struct->Cur_Reg->Reg.R9;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_R9_SET:     {Thd_Struct->Cur_Reg->Reg.R9=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_R10_GET:    {Reg->R6=Thd_Struct->Cur_Reg->Reg.R10;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_R10_SET:    {Thd_Struct->Cur_Reg->Reg.R10=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_R11_GET:    {Reg->R6=Thd_Struct->Cur_Reg->Reg.R11;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_R11_SET:    {Thd_Struct->Cur_Reg->Reg.R11=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_LR_GET:     {Reg->R6=Thd_Struct->Cur_Reg->Reg.LR;break;}
+        /* case RME_A7M_KERN_DEBUG_REG_MOD_LR_SET: LR write is not allowed, may cause arbitrary kernel execution */
         /* FPU register read/write */
-        case RME_KERN_DEBUG_REG_MOD_S16_READ:Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S16;break;
-        case RME_KERN_DEBUG_REG_MOD_S16_WRITE:Thd_Struct->Cur_Reg->Cop_Reg.S16=Reg->R6;break;
-        case RME_KERN_DEBUG_REG_MOD_S17_READ:Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S17;break;
-        case RME_KERN_DEBUG_REG_MOD_S17_WRITE:Thd_Struct->Cur_Reg->Cop_Reg.S17=Reg->R6;break;
-        case RME_KERN_DEBUG_REG_MOD_S18_READ:Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S18;break;
-        case RME_KERN_DEBUG_REG_MOD_S18_WRITE:Thd_Struct->Cur_Reg->Cop_Reg.S18=Reg->R6;break;
-        case RME_KERN_DEBUG_REG_MOD_S19_READ:Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S19;break;
-        case RME_KERN_DEBUG_REG_MOD_S19_WRITE:Thd_Struct->Cur_Reg->Cop_Reg.S19=Reg->R6;break;
-        case RME_KERN_DEBUG_REG_MOD_S20_READ:Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S20;break;
-        case RME_KERN_DEBUG_REG_MOD_S20_WRITE:Thd_Struct->Cur_Reg->Cop_Reg.S20=Reg->R6;break;
-        case RME_KERN_DEBUG_REG_MOD_S21_READ:Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S21;break;
-        case RME_KERN_DEBUG_REG_MOD_S21_WRITE:Thd_Struct->Cur_Reg->Cop_Reg.S21=Reg->R6;break;
-        case RME_KERN_DEBUG_REG_MOD_S22_READ:Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S22;break;
-        case RME_KERN_DEBUG_REG_MOD_S22_WRITE:Thd_Struct->Cur_Reg->Cop_Reg.S22=Reg->R6;break;
-        case RME_KERN_DEBUG_REG_MOD_S23_READ:Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S23;break;
-        case RME_KERN_DEBUG_REG_MOD_S23_WRITE:Thd_Struct->Cur_Reg->Cop_Reg.S23=Reg->R6;break;
-        case RME_KERN_DEBUG_REG_MOD_S24_READ:Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S24;break;
-        case RME_KERN_DEBUG_REG_MOD_S24_WRITE:Thd_Struct->Cur_Reg->Cop_Reg.S24=Reg->R6;break;
-        case RME_KERN_DEBUG_REG_MOD_S25_READ:Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S25;break;
-        case RME_KERN_DEBUG_REG_MOD_S25_WRITE:Thd_Struct->Cur_Reg->Cop_Reg.S25=Reg->R6;break;
-        case RME_KERN_DEBUG_REG_MOD_S26_READ:Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S26;break;
-        case RME_KERN_DEBUG_REG_MOD_S26_WRITE:Thd_Struct->Cur_Reg->Cop_Reg.S26=Reg->R6;break;
-        case RME_KERN_DEBUG_REG_MOD_S27_READ:Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S27;break;
-        case RME_KERN_DEBUG_REG_MOD_S27_WRITE:Thd_Struct->Cur_Reg->Cop_Reg.S27=Reg->R6;break;
-        case RME_KERN_DEBUG_REG_MOD_S28_READ:Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S28;break;
-        case RME_KERN_DEBUG_REG_MOD_S28_WRITE:Thd_Struct->Cur_Reg->Cop_Reg.S28=Reg->R6;break;
-        case RME_KERN_DEBUG_REG_MOD_S29_READ:Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S29;break;
-        case RME_KERN_DEBUG_REG_MOD_S29_WRITE:Thd_Struct->Cur_Reg->Cop_Reg.S29=Reg->R6;break;
-        case RME_KERN_DEBUG_REG_MOD_S30_READ:Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S30;break;
-        case RME_KERN_DEBUG_REG_MOD_S30_WRITE:Thd_Struct->Cur_Reg->Cop_Reg.S30=Reg->R6;break;
-        case RME_KERN_DEBUG_REG_MOD_S31_READ:Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S31;break;
-        case RME_KERN_DEBUG_REG_MOD_S31_WRITE:Thd_Struct->Cur_Reg->Cop_Reg.S31=Reg->R6;break;
-        default:return RME_ERR_KERN_OPFAIL;
+        case RME_A7M_KERN_DEBUG_REG_MOD_S16_GET:    {Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S16;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S16_SET:    {Thd_Struct->Cur_Reg->Cop_Reg.S16=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S17_GET:    {Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S17;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S17_SET:    {Thd_Struct->Cur_Reg->Cop_Reg.S17=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S18_GET:    {Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S18;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S18_SET:    {Thd_Struct->Cur_Reg->Cop_Reg.S18=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S19_GET:    {Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S19;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S19_SET:    {Thd_Struct->Cur_Reg->Cop_Reg.S19=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S20_GET:    {Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S20;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S20_SET:    {Thd_Struct->Cur_Reg->Cop_Reg.S20=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S21_GET:    {Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S21;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S21_SET:    {Thd_Struct->Cur_Reg->Cop_Reg.S21=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S22_GET:    {Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S22;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S22_SET:    {Thd_Struct->Cur_Reg->Cop_Reg.S22=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S23_GET:    {Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S23;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S23_SET:    {Thd_Struct->Cur_Reg->Cop_Reg.S23=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S24_GET:    {Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S24;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S24_SET:    {Thd_Struct->Cur_Reg->Cop_Reg.S24=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S25_GET:    {Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S25;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S25_SET:    {Thd_Struct->Cur_Reg->Cop_Reg.S25=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S26_GET:    {Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S26;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S26_SET:    {Thd_Struct->Cur_Reg->Cop_Reg.S26=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S27_GET:    {Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S27;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S27_SET:    {Thd_Struct->Cur_Reg->Cop_Reg.S27=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S28_GET:    {Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S28;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S28_SET:    {Thd_Struct->Cur_Reg->Cop_Reg.S28=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S29_GET:    {Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S29;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S29_SET:    {Thd_Struct->Cur_Reg->Cop_Reg.S29=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S30_GET:    {Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S30;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S30_SET:    {Thd_Struct->Cur_Reg->Cop_Reg.S30=Value;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S31_GET:    {Reg->R6=Thd_Struct->Cur_Reg->Cop_Reg.S31;break;}
+        case RME_A7M_KERN_DEBUG_REG_MOD_S31_SET:    {Thd_Struct->Cur_Reg->Cop_Reg.S31=Value;break;}
+        default:                                    {return RME_ERR_KERN_OPFAIL;}
     }
-    
-    __RME_Set_Syscall_Retval(Reg, 0);
+
     return 0;
 }
 /* End Function:__RME_A7M_Debug_Reg_Mod **************************************/
+
+/* Begin Function:__RME_A7M_Debug_Inv_Mod *************************************
+Description : Debug invocation register modification implementation for ARMv7-M.
+Input       : struct RME_Cap_Captbl* Captbl - The current capability table.
+              struct RME_Reg_Struct* Reg - The current register set.
+              rme_cid_t Cap_Thd - The capability to the thread to consult.
+              rme_ptr_t Operation - The operation, e.g. which register to read or write.
+              rme_ptr_t Value - The value to write into the register.
+Output      : struct RME_Reg_Struct* Reg - The register set when exiting the handler.
+Return      : rme_ret_t - If successful, 0; if a negative value, failed.
+******************************************************************************/
+rme_ret_t __RME_A7M_Debug_Inv_Mod(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg, 
+                                  rme_cid_t Cap_Thd, rme_ptr_t Operation, rme_ptr_t Value)
+{
+    struct RME_Cap_Thd* Thd_Op;
+    struct RME_Thd_Struct* Thd_Struct;
+    struct RME_Inv_Struct* Inv_Struct;
+    struct RME_CPU_Local* CPU_Local;
+    rme_ptr_t Type_Stat;
+    rme_ptr_t Layer_Cnt;
+    
+    /* Get the capability slot */
+    RME_CAPTBL_GETCAP(Captbl,Cap_Thd,RME_CAP_TYPE_THD,struct RME_Cap_Thd*,Thd_Op,Type_Stat);
+    
+    /* See if the target thread is already binded. If no or binded to other cores, we just quit */
+    CPU_Local=RME_CPU_LOCAL();
+    Thd_Struct=(struct RME_Thd_Struct*)Thd_Op->Head.Object;
+    if(Thd_Struct->Sched.CPU_Local!=CPU_Local)
+        return RME_ERR_PTH_INVSTATE;
+    
+    /* Find whatever position we require - Layer 0 is the first layer (stack top), and so on */
+    Layer_Cnt=RME_PARAM_D1(Operation);
+    Inv_Struct=(struct RME_Inv_Struct*)(Thd_Struct->Inv_Stack.Next);
+    while(1)
+    {
+        if(Inv_Struct==(struct RME_Inv_Struct*)&(Thd_Struct->Inv_Stack))
+            return RME_ERR_KERN_OPFAIL;
+        
+        if(Layer_Cnt==0)
+            break;
+        
+        Layer_Cnt--;
+        Inv_Struct=(struct RME_Inv_Struct*)(Inv_Struct->Head.Next);
+    }
+
+    /* D0 position is the operation */
+    switch(RME_PARAM_D0(Operation))
+    {
+        /* Register read/write */
+        case RME_A7M_KERN_DEBUG_INV_MOD_SP_GET:     {Reg->R6=Inv_Struct->Ret.SP;break;}
+        case RME_A7M_KERN_DEBUG_INV_MOD_SP_SET:     {Inv_Struct->Ret.SP=Value;break;}
+        case RME_A7M_KERN_DEBUG_INV_MOD_LR_GET:     {Reg->R6=Reg->R6=Inv_Struct->Ret.LR;break;}
+        /* case RME_A7M_KERN_DEBUG_INV_MOD_LR_SET: LR write is not allowed, may cause arbitrary kernel execution */
+        default:                                    {return RME_ERR_KERN_OPFAIL;}
+    }
+
+    return 0;
+}
+/* End Function:__RME_A7M_Debug_Inv_Mod **************************************/
 
 /* Begin Function:__RME_Kern_Func_Handler *************************************
 Description : Handle kernel function calls.
@@ -503,107 +1194,91 @@ Return      : rme_ret_t - The value that the function returned.
 rme_ret_t __RME_Kern_Func_Handler(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg,
                                   rme_ptr_t Func_ID, rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2)
 {
-#if(RME_GEN_ENABLE==RME_TRUE)
     rme_ret_t Retval;
-#endif
 
-    /* Currently we only implement sends */
+    /* Standard kernel function implmentations */
     switch(Func_ID)
     {
-        case RME_KERN_IDLE_SLEEP:
-        {
-            __RME_A7M_Wait_Int();
-            
-            __RME_Set_Syscall_Retval(Reg,0);
-            
-            return 0;
-        }
-        case RME_KERN_EVT_LOCAL_TRIG:
-        {
-            if(Sub_ID!=0)
-                return RME_ERR_KERN_OPFAIL;
-            
-            if(Param1>=RME_A7M_MAX_EVTS)
-                return RME_ERR_KERN_OPFAIL;
-            
-            __RME_A7M_Set_Flag(RME_A7M_EVT_FLAG_ADDR, 0);
-            
-            if(_RME_Kern_Snd(RME_A7M_Local.Vect_Sig)!=0)
-                return RME_ERR_KERN_OPFAIL;
-            
-            __RME_Set_Syscall_Retval(Reg,0);
-            
-            _RME_Kern_High(Reg, &RME_A7M_Local);
-            
-            return 0;
-        }
-        case RME_KERN_DEBUG_REG_MOD:
-        {
-            return __RME_A7M_Debug_Reg_Mod(Captbl, Reg, Sub_ID, Param1);
-        }
+/* Page table operations *****************************************************/
+        case RME_KERN_PGTBL_CACHE_CLR:  {return RME_ERR_KERN_OPFAIL;}
+        case RME_KERN_PGTBL_LINE_CLR:   {return RME_ERR_KERN_OPFAIL;}
+        case RME_KERN_PGTBL_ASID_SET:   {return RME_ERR_KERN_OPFAIL;}
+        case RME_KERN_PGTBL_TLB_LOCK:   {return RME_ERR_KERN_OPFAIL;}
+        case RME_KERN_PGTBL_ENTRY_MOD:  {Retval=__RME_A7M_Pgtbl_Entry_Mod(Captbl, Sub_ID, Param1, Param2);break;}
+/* Interrupt controller operations *******************************************/
+        case RME_KERN_INT_LOCAL_MOD:    {Retval=__RME_A7M_Int_Local_Mod(Sub_ID, Param1, Param2);break;}
+        case RME_KERN_INT_GLOBAL_MOD:   {return RME_ERR_KERN_OPFAIL;}
+        case RME_KERN_INT_LOCAL_TRIG:   {Retval=__RME_A7M_Int_Local_Trig(Sub_ID, Param1);break;} /* Never ctxsw */
+        case RME_KERN_EVT_LOCAL_TRIG:   {return __RME_A7M_Evt_Local_Trig(Reg, Sub_ID, Param1);} /* May ctxsw */
+/* Cache operations **********************************************************/
+        case RME_KERN_CACHE_MOD:        {Retval=__RME_A7M_Cache_Mod(Sub_ID, Param1, Param2);break;}
+        case RME_KERN_CACHE_CONFIG:     {return RME_ERR_KERN_OPFAIL;}
+        case RME_KERN_CACHE_MAINT:      {Retval=__RME_A7M_Cache_Maint(Sub_ID, Param1, Param2);break;}
+        case RME_KERN_CACHE_LOCK:       {return RME_ERR_KERN_OPFAIL;}
+        case RME_KERN_PRFTH_MOD:        {Retval=__RME_A7M_Prfth_Mod(Sub_ID, Param1, Param2);break;}
+/* Hot plug and pull operations **********************************************/
+        case RME_KERN_HPNP_PCPU_MOD:    {return RME_ERR_KERN_OPFAIL;}
+        case RME_KERN_HPNP_LCPU_MOD:    {return RME_ERR_KERN_OPFAIL;}
+        case RME_KERN_HPNP_PMEM_MOD:    {return RME_ERR_KERN_OPFAIL;}
+/* Power and frequency adjustment operations *********************************/
+        case RME_KERN_IDLE_SLEEP:       {__RME_A7M_Wait_Int();Retval=0;break;}
+        case RME_KERN_SYS_REBOOT:       {__RME_A7M_Reboot();while(1);}
+        case RME_KERN_SYS_SHDN:         {return RME_ERR_KERN_OPFAIL;}
+        case RME_KERN_VOLT_MOD:         {return RME_ERR_KERN_OPFAIL;}
+        case RME_KERN_FREQ_MOD:         {return RME_ERR_KERN_OPFAIL;}
+        case RME_KERN_PMOD_MOD:         {return RME_ERR_KERN_OPFAIL;}
+        case RME_KERN_SAFETY_MOD:       {return RME_ERR_KERN_OPFAIL;}
+/* Performance monitoring operations *****************************************/
+        case RME_KERN_PERF_CPU_FUNC:    {Retval=__RME_A7M_Perf_CPU_Func(Reg, Sub_ID);break;} /* Value in R6 */
+        case RME_KERN_PERF_MON_MOD:     {Retval=__RME_A7M_Perf_Mon_Mod(Sub_ID, Param1, Param2);break;}
+        case RME_KERN_PERF_CNT_MOD:     {return RME_ERR_KERN_OPFAIL;}
+        case RME_KERN_PERF_CYCLE_MOD:   {Retval=__RME_A7M_Perf_Cycle_Mod(Reg, Sub_ID, Param1, Param2);break;} /* Value in R6 */
+        case RME_KERN_PERF_DATA_MOD:    {return RME_ERR_KERN_OPFAIL;}
+        case RME_KERN_PERF_PHYS_MOD:    {return RME_ERR_KERN_OPFAIL;}
+        case RME_KERN_PERF_CUMUL_MOD:   {return RME_ERR_KERN_OPFAIL;}
+/* Hardware virtualization operations ****************************************/
+        case RME_KERN_VM_CRT:           {return RME_ERR_KERN_OPFAIL;}
+        case RME_KERN_VM_DEL:           {return RME_ERR_KERN_OPFAIL;}
+        case RME_KERN_VM_PGT:           {return RME_ERR_KERN_OPFAIL;}
+        case RME_KERN_VM_MOD:           {return RME_ERR_KERN_OPFAIL;}
+        case RME_KERN_VCPU_CRT:         {return RME_ERR_KERN_OPFAIL;}
+        case RME_KERN_VCPU_BIND:        {return RME_ERR_KERN_OPFAIL;}
+        case RME_KERN_VCPU_FREE:        {return RME_ERR_KERN_OPFAIL;}
+        case RME_KERN_VCPU_DEL:         {return RME_ERR_KERN_OPFAIL;}
+        case RME_KERN_VCPU_MOD:         {return RME_ERR_KERN_OPFAIL;}
+        case RME_KERN_VCPU_RUN:         {return RME_ERR_KERN_OPFAIL;}
+/* Security monitor operations ***********************************************/
+        case RME_KERN_ECLV_CRT:         {return RME_ERR_KERN_OPFAIL;}
+        case RME_KERN_ECLV_MOD:         {return RME_ERR_KERN_OPFAIL;}
+        case RME_KERN_ECLV_DEL:         {return RME_ERR_KERN_OPFAIL;}
+        case RME_KERN_ECLV_ACT:         {return RME_ERR_KERN_OPFAIL;}
+        case RME_KERN_ECLV_RET:         {return RME_ERR_KERN_OPFAIL;}
+/* Debugging operations ******************************************************/
+        case RME_KERN_DEBUG_PRINT:      {__RME_Putchar(Sub_ID);Retval=0;break;}
+        case RME_KERN_DEBUG_REG_MOD:    {Retval=__RME_A7M_Debug_Reg_Mod(Captbl, Reg, Sub_ID, Param1, Param2);break;} /* Value in R6 */
+        case RME_KERN_DEBUG_INV_MOD:    {Retval=__RME_A7M_Debug_Inv_Mod(Captbl, Reg, Sub_ID, Param1, Param2);break;} /* Value in R6 */
+        case RME_KERN_DEBUG_MODE_MOD:   {return RME_ERR_KERN_OPFAIL;}
+        case RME_KERN_DEBUG_IBP_MOD:    {return RME_ERR_KERN_OPFAIL;}
+        case RME_KERN_DEBUG_DBP_MOD:    {return RME_ERR_KERN_OPFAIL;}
+/* User-defined operations ***************************************************/
         default:
         {
 #if(RME_GEN_ENABLE==RME_TRUE)
             extern rme_ret_t RME_User_Kern_Func_Handler(rme_ptr_t Func_ID, rme_ptr_t Sub_ID, rme_ptr_t Param1, rme_ptr_t Param2);
             Retval=RME_User_Kern_Func_Handler(Func_ID, Sub_ID, Param1, Param2);
-            
-            if(Retval>=0)
-                __RME_Set_Syscall_Retval(Reg,0);
-            
-            return Retval;
 #else
-            break;
+            return RME_ERR_KERN_OPFAIL;
 #endif
         }
     }
 
-#if(RME_GEN_ENABLE!=RME_TRUE)
     /* If it gets here, we must have failed */
-    return RME_ERR_KERN_OPFAIL;
-#endif
+    if(Retval>=0)
+        __RME_Set_Syscall_Retval(Reg,0);
+            
+    return Retval;
 }
 /* End Function:__RME_Kern_Func_Handler **************************************/
-
-/* Begin Function:__RME_A7M_NVIC_Enable_IRQ ***********************************
-Description : Enable an ARMv7-M non-core interrupt.
-Input       : rme_ptr_t IRQ - The non-core IRQ number.
-Output      : None.
-Return      : None.
-******************************************************************************/
-void __RME_A7M_NVIC_Enable_IRQ(rme_ptr_t IRQ)
-{
-  RME_A7M_NVIC_ISE(IRQ>>5)=RME_POW2(IRQ&0x1F);
-}
-/* End Function:__RME_A7M_NVIC_Enable_IRQ ************************************/
-
-/* Begin Function:__RME_A7M_NVIC_Disable_IRQ **********************************
-Description : Disable an ARMv7-M non-core interrupt.
-Input       : rme_ptr_t IRQ - The non-core IRQ number.
-Output      : None.
-Return      : None.
-******************************************************************************/
-void __RME_A7M_NVIC_Disable_IRQ(rme_ptr_t IRQ)
-{
-    RME_A7M_NVIC_ICE(IRQ>>5)=RME_POW2(IRQ&0x1F);
-}
-/* End Function:__RME_A7M_NVIC_Disable_IRQ ***********************************/
-
-/* Begin Function:__RME_A7M_NVIC_Set_Prio *************************************
-Description : Set the interrupt priority in ARMv7-M architecture.
-Input       : rme_ret_t IRQ - The IRQ number.
-              rme_ptr_t Prio - The priority to directly write into the priority
-                               register.
-Output      : None.
-Return      : None.
-******************************************************************************/
-void __RME_A7M_NVIC_Set_Prio(rme_ret_t IRQ, rme_ptr_t Prio)
-{
-    if(IRQ<0)
-        RME_A7M_SCB_SHPR((((rme_ptr_t)IRQ)&0xFU)-4U)=Prio;
-    else
-        RME_A7M_NVIC_IP(IRQ)=Prio;
-}
-/* End Function:__RME_A7M_NVIC_Set_Prio **************************************/
 
 /* Begin Function:__RME_A7M_Low_Level_Preinit *********************************
 Description : Initialize the low-level hardware, before the loading of the kernel
@@ -623,6 +1298,62 @@ void __RME_A7M_Low_Level_Preinit(void)
 }
 /* End Function:__RME_A7M_Low_Level_Preinit **********************************/
 
+/* Begin Function:__RME_A7M_NVIC_Set_Exc_Prio *********************************
+Description : Set the system exception priority in ARMv7-M architecture.
+Input       : rme_cnt_t Exc - The exception number, always nagative.
+              rme_ptr_t Prio - The priority to directly write into the priority
+                               register.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void __RME_A7M_NVIC_Set_Exc_Prio(rme_cnt_t Exc, rme_ptr_t Prio)
+{
+    RME_ASSERT(Exc<0);
+    RME_A7M_SCB_SHPR((((rme_ptr_t)Exc)&0xFU)-4U)=Prio;
+}
+/* End Function:__RME_A7M_NVIC_Set_Exc_Prio **********************************/
+
+/* Begin Function:__RME_A7M_Cache_Init ****************************************
+Description : Initialize the I-Cache and D-Cache for the core. This will only be
+              called for processors that actually have cache.
+Input       : None.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void __RME_A7M_Cache_Init(void)
+{
+    rme_ptr_t Sets;
+    rme_ptr_t Ways;
+    rme_ptr_t Set_Cnt;
+    rme_ptr_t Way_Cnt;
+
+    /* I-Cache */
+    __RME_A7M_Barrier();
+    RME_A7M_SCNSCB_ICALLU=0;
+    RME_A7M_SCB_CCR|=RME_A7M_SCB_CCR_IC;
+    __RME_A7M_Barrier();
+
+    /* D-Cache */
+    RME_A7M_SCB_CSSELR=0;
+    __RME_A7M_Barrier();
+
+    Sets=RME_A7M_SCB_CCSIDR_SETS(RME_A7M_SCB_CCSIDR);
+    Ways=RME_A7M_SCB_CCSIDR_WAYS(RME_A7M_SCB_CCSIDR);
+    
+    for(Set_Cnt=0;Set_Cnt<=Sets;Set_Cnt++)
+    {
+        for(Way_Cnt=0;Way_Cnt<=Ways;Way_Cnt++)
+        {
+            RME_A7M_SCNSCB_DCISW=RME_A7M_SCNSCB_DC(Set_Cnt,Way_Cnt);
+            __RME_A7M_Barrier();
+        }
+    }
+    
+    RME_A7M_SCB_CCR|=RME_A7M_SCB_CCR_DC;
+    __RME_A7M_Barrier();
+}
+/* End Function:__RME_A7M_Cache_Init *****************************************/
+
 /* Begin Function:__RME_Low_Level_Init ****************************************
 Description : Initialize the low-level hardware.
 Input       : None.
@@ -634,6 +1365,10 @@ rme_ptr_t __RME_Low_Level_Init(void)
     rme_ptr_t Temp;
     
     RME_A7M_LOW_LEVEL_INIT();
+    
+    /* Check the number of interrupt lines */
+    RME_ASSERT(((RME_A7M_SCNSCB_ICTR+1)<<5)>=RME_A7M_VECT_NUM);
+    RME_ASSERT(240>=RME_A7M_VECT_NUM);
 
     /* Enable the MPU */
     RME_A7M_MPU_CTRL&=~RME_A7M_MPU_CTRL_ENABLE;
@@ -664,13 +1399,13 @@ rme_ptr_t __RME_Low_Level_Init(void)
      * placed at a priority smaller than 0x80 and the user needs to guarantee
      * that they never preempt each other. To make things 100% work, place all
      * those vectors that may send from kernel to priority 0xFF. */
-    __RME_A7M_NVIC_Set_Prio(RME_A7M_IRQN_SVCALL, 0x80);
-    __RME_A7M_NVIC_Set_Prio(RME_A7M_IRQN_PENDSV, 0xFF);
-    __RME_A7M_NVIC_Set_Prio(RME_A7M_IRQN_SYSTICK, 0xFF);
-    __RME_A7M_NVIC_Set_Prio(RME_A7M_IRQN_BUSFAULT, 0x40);
-    __RME_A7M_NVIC_Set_Prio(RME_A7M_IRQN_USAGEFAULT, 0x40);
-    __RME_A7M_NVIC_Set_Prio(RME_A7M_IRQN_DEBUGMONITOR, 0xFF);
-    __RME_A7M_NVIC_Set_Prio(RME_A7M_IRQN_MEMORYMANAGEMENT, 0xFF);
+    __RME_A7M_NVIC_Set_Exc_Prio(RME_A7M_IRQN_SVCALL, 0x80);
+    __RME_A7M_NVIC_Set_Exc_Prio(RME_A7M_IRQN_PENDSV, 0xFF);
+    __RME_A7M_NVIC_Set_Exc_Prio(RME_A7M_IRQN_SYSTICK, 0xFF);
+    __RME_A7M_NVIC_Set_Exc_Prio(RME_A7M_IRQN_BUSFAULT, 0x40);
+    __RME_A7M_NVIC_Set_Exc_Prio(RME_A7M_IRQN_USAGEFAULT, 0x40);
+    __RME_A7M_NVIC_Set_Exc_Prio(RME_A7M_IRQN_DEBUGMONITOR, 0xFF);
+    __RME_A7M_NVIC_Set_Exc_Prio(RME_A7M_IRQN_MEMORYMANAGEMENT, 0xFF);
 
     /* Initialize CPU-local data structures */
     _RME_CPU_Local_Init(&RME_A7M_Local, 0);
@@ -685,6 +1420,9 @@ rme_ptr_t __RME_Low_Level_Init(void)
     /* We do not need to turn off lazy stacking, because even if a fault occurs,
      * it will get dropped by our handler deliberately and will not cause wrong
      * attribution. They can be alternatively disabled as well if you wish */
+     
+    /* Turn on FPU access from unpriviledged software - CP10&11 full access */
+    RME_A7M_SCB_CPACR|=((3U<<(10*2))|(3U<<(11*2)));
 		 
 #if(RME_GEN_ENABLE==RME_TRUE)
 	extern void RME_Boot_Post_Init(void);
@@ -799,6 +1537,24 @@ rme_ptr_t __RME_Boot(void)
     return 0;
 }
 /* End Function:__RME_Boot ***************************************************/
+
+/* Begin Function:__RME_A7M_Reboot ********************************************
+Description : Reboot the MCU, including all its peripherals.
+Input       : None.
+Output      : None.
+Return      : None.
+******************************************************************************/
+void __RME_A7M_Reboot(void)
+{
+#if(RME_GEN_ENABLE==RME_TRUE)
+    extern void RME_Reboot_Failsafe(void);
+    RME_Reboot_Failsafe();
+#endif
+
+    /* Reboots the platform, which includes all peripherals. This is standard across all ARMv7-M */
+    __RME_A7M_Reset();
+}
+/* End Function:__RME_A7M_Reboot *********************************************/
 
 /* Begin Function:__RME_Get_Syscall_Param *************************************
 Description : Get the system call parameters from the stack frame.

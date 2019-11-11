@@ -44,6 +44,9 @@ Description: The configuration file for STM32F405RG.
 #define RME_A7M_NVIC_GROUPING                           (RME_A7M_NVIC_GROUPING_P2S6)
 /* What is the Systick value? - 10ms per tick*/
 #define RME_A7M_SYSTICK_VAL                             (1680000)
+
+/* What is the external crystal frequency? */
+#define RME_A7M_STM32F405RG_XTAL                        (8)
 /* What are the PLL values? */
 #define RME_A7M_STM32F405RG_PLLM                        (8)
 #define RME_A7M_STM32F405RG_PLLN                        (336)
@@ -57,6 +60,8 @@ Description: The configuration file for STM32F405RG.
 #define RME_A7M_MPU_REGIONS                             (8)
 /* What is the FPU type? */
 #define RME_A7M_FPU_TYPE                                (RME_A7M_FPU_FPV4)
+/* What is the vector number excluding system vectors? */
+#define RME_A7M_VECT_NUM                                (82)
 
 /* Interrupts ****************************************************************/
 #define WWDG_IRQHandler                                 IRQ0_Handler        /* Window WatchDog */
@@ -239,11 +244,12 @@ Description: The configuration file for STM32F405RG.
 #define RME_A7M_GPIOB_AF0(AF,PIN)                       RME_A7M_GPIOB_AFR0=(RME_A7M_GPIOB_AFR0&~(0x0F<<((PIN)*4)))|((AF)<<((PIN)*4))
 #define RME_A7M_GPIOB_AF1(AF,PIN)                       RME_A7M_GPIOB_AFR1=(RME_A7M_GPIOB_AFR1&~(0x0F<<((PIN-8)*4)))|((AF)<<((PIN-8)*4))
 
+#define RME_A7M_USART1_SR                               RME_A7M_REG(0x40011000)
+#define RME_A7M_USART1_DR                               RME_A7M_REG(0x40011004)
+#define RME_A7M_USART1_BRR                              RME_A7M_REG(0x40011008)
 #define RME_A7M_USART1_CR1                              RME_A7M_REG(0x4001100C)
 #define RME_A7M_USART1_CR2                              RME_A7M_REG(0x40011010)
 #define RME_A7M_USART1_CR3                              RME_A7M_REG(0x40011014)
-#define RME_A7M_USART1_BRR                              RME_A7M_REG(0x40011008)
-#define RME_A7M_USART1_DR                               RME_A7M_REG(0x40011004)
 
 #define RME_A7M_USART1_CR1_UE                           (1U<<13)
 
@@ -335,9 +341,31 @@ while(0)
 #define RME_A7M_PUTCHAR(CHAR) \
 do \
 { \
-    __RME_A7M_ITM_Putchar((rme_s8_t)(CHAR)); \
+    RME_A7M_USART1_DR=(CHAR); \
+    while((RME_A7M_USART1_SR&0x80)==0); \
 } \
 while(0)
+
+/* Prefetcher state set and get */
+#define RME_A7M_PRFTH_STATE_SET(STATE) \
+do \
+{ \
+    if((STATE)!=0) \
+    { \
+        RME_A7M_FLASH_ACR|=RME_A7M_FLASH_ACR_ICEN; \
+        RME_A7M_FLASH_ACR|=RME_A7M_FLASH_ACR_DCEN; \
+        RME_A7M_FLASH_ACR|=RME_A7M_FLASH_ACR_PRFTEN; \
+    } \
+    else \
+    { \
+        RME_A7M_FLASH_ACR&=~RME_A7M_FLASH_ACR_PRFTEN; \
+        RME_A7M_FLASH_ACR&=~RME_A7M_FLASH_ACR_DCEN; \
+        RME_A7M_FLASH_ACR&=~RME_A7M_FLASH_ACR_ICEN; \
+    } \
+} \
+while(0)
+    
+#define RME_A7M_PRFTH_STATE_GET() ((RME_A7M_FLASH_ACR&RME_A7M_FLASH_ACR_ICEN)!=0)
 /* End Defines ***************************************************************/
 
 /* End Of File ***************************************************************/

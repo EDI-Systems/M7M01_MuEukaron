@@ -119,6 +119,8 @@ typedef rme_s32_t rme_ret_t;
  * single core. If this changes in the future, we may need DMB barriers. */
 #define RME_READ_ACQUIRE(X)             (*(X))
 #define RME_WRITE_RELEASE(X,V)          ((*(X))=(V))
+/* Reboot the processor if the assert fails in this port */
+#define RME_ASSERT_FAILED(F,L,D,T)      __RME_A7M_Reboot()
 
 /* The CPU and application specific macros are here */
 #include "rme_platform_a7m_conf.h"
@@ -128,78 +130,138 @@ typedef rme_s32_t rme_ret_t;
 /* Registers *****************************************************************/
 #define RME_A7M_REG(X)                  (*((volatile rme_ptr_t*)(X)))
 #define RME_A7M_REGB(X)                 (*((volatile rme_u8_t*)(X)))
-    
-#define RME_A7M_SCB_ICALLU              RME_A7M_REG(0xE000EF50)
+
+#define RME_A7M_ITM_TER                 RME_A7M_REG(0xE0000E00)
+#define RME_A7M_ITM_PORT(X)             RME_A7M_REG(0xE0000000+((X)<<2))
+
+#define RME_A7M_ITM_TCR                 RME_A7M_REG(0xE0000E80)
+#define RME_A7M_ITM_TCR_ITMENA          (1U<<0)
+
+#define RME_A7M_DWT_CTRL                RME_A7M_REG(0xE0001000)
+#define RME_A7M_DWT_CTRL_NOCYCCNT       (1U<<25)
+#define RME_A7M_DWT_CTRL_CYCCNTENA      (1U<<0)
+
+#define RME_A7M_DWT_CYCCNT              RME_A7M_REG(0xE0001004)
+
+#define RME_A7M_SCNSCB_ICTR             RME_A7M_REG(0xE000E004)
+
+#define RME_A7M_SCNSCB_ACTLR            RME_A7M_REG(0xE000E008)
+#define RME_A7M_SCNSCB_ACTLR_DISBTAC    (1U<<13)
+
+#define RME_A7M_SYSTICK_CTRL            RME_A7M_REG(0xE000E010)
+#define RME_A7M_SYSTICK_CTRL_CLKSOURCE  (1U<<2)
+#define RME_A7M_SYSTICK_CTRL_TICKINT    (1U<<1)
+#define RME_A7M_SYSTICK_CTRL_ENABLE     (1U<<0)
+
+#define RME_A7M_SYSTICK_LOAD            RME_A7M_REG(0xE000E014)
+#define RME_A7M_SYSTICK_VALREG          RME_A7M_REG(0xE000E018)
+#define RME_A7M_SYSTICK_CALIB           RME_A7M_REG(0xE000E01C)
+
+#define RME_A7M_NVIC_ISER(X)            RME_A7M_REG(0xE000E100+(((X)>>5)<<2))
+#define RME_A7M_NVIC_ICER(X)            RME_A7M_REG(0xE000E180+(((X)>>5)<<2))
+
+#define RME_A7M_NVIC_IPR(X)             RME_A7M_REGB(0xE000E400+(X))
+#define RME_A7M_NVIC_GROUPING_P7S1      (0)
+#define RME_A7M_NVIC_GROUPING_P6S2      (1)
+#define RME_A7M_NVIC_GROUPING_P5S3      (2)
+#define RME_A7M_NVIC_GROUPING_P4S4      (3)
+#define RME_A7M_NVIC_GROUPING_P3S5      (4)
+#define RME_A7M_NVIC_GROUPING_P2S6      (5)
+#define RME_A7M_NVIC_GROUPING_P1S7      (6)
+#define RME_A7M_NVIC_GROUPING_P0S8      (7)
+
+#define RME_A7M_IRQN_NONMASKABLEINT     (-14)
+#define RME_A7M_IRQN_MEMORYMANAGEMENT   (-12)
+#define RME_A7M_IRQN_BUSFAULT           (-11)
+#define RME_A7M_IRQN_USAGEFAULT         (-10)
+#define RME_A7M_IRQN_SVCALL             (-5)
+#define RME_A7M_IRQN_DEBUGMONITOR       (-4)
+#define RME_A7M_IRQN_PENDSV             (-2)
+#define RME_A7M_IRQN_SYSTICK            (-1)
+
+#define RME_A7M_SCB_CPUID               RME_A7M_REG(0xE000ED00)
+#define RME_A7M_SCB_ICSR                RME_A7M_REG(0xE000ED04)
+#define RME_A7M_SCB_VTOR                RME_A7M_REG(0xE000ED08)
+#define RME_A7M_SCB_AIRCR               RME_A7M_REG(0xE000ED0C)
+
+#define RME_A7M_SCB_SCR                 RME_A7M_REG(0xE000ED10)
+#define RME_A7M_SCB_SCR_SEVONPEND       (1<<4)
+#define RME_A7M_SCB_SCR_SLEEPDEEP       (1<<2)
+#define RME_A7M_SCB_SCR_SLEEPONEXIT     (1<<1)
 
 #define RME_A7M_SCB_CCR                 RME_A7M_REG(0xE000ED14)
 #define RME_A7M_SCB_CCR_IC              (1U<<17)
 #define RME_A7M_SCB_CCR_DC              (1U<<16)
 
-#define RME_A7M_SCB_CSSELR              RME_A7M_REG(0xE000ED84)
-
-#define RME_A7M_SCB_CCSIDR              RME_A7M_REG(0xE000ED80)
-#define RME_A7M_SCB_CCSIDR_WAYS(X)      (((X)&0x1FF8)>>3)
-#define RME_A7M_SCB_CCSIDR_SETS(X)      (((X)&0x0FFFE000)>>13)
-
-#define RME_A7M_SCB_CPACR               RME_A7M_REG(0xE000ED88)
-
-#define RME_A7M_SCB_VTOR                RME_A7M_REG(0xE000ED08)
-
-#define RME_A7M_SCB_DCISW               RME_A7M_REG(0xE000EF60)
-#define RME_A7M_SCB_DCISW_INV(SET,WAY)  (((SET)<<5)|((WAY)<<30))
+#define RME_A7M_SCB_SHPR(X)             RME_A7M_REGB(0xE000ED18+(X))
 
 #define RME_A7M_SCB_SHCSR               RME_A7M_REG(0xE000ED24)
 #define RME_A7M_SCB_SHCSR_MEMFAULTENA   (1U<<16)
 #define RME_A7M_SCB_SHCSR_BUSFAULTENA   (1U<<17)
 #define RME_A7M_SCB_SHCSR_USGFAULTENA   (1U<<18)
 
-#define RME_A7M_SCB_HFSR                RME_A7M_REG(0xE000ED2C)
 #define RME_A7M_SCB_CFSR                RME_A7M_REG(0xE000ED28)
+#define RME_A7M_SCB_HFSR                RME_A7M_REG(0xE000ED2C)
 #define RME_A7M_SCB_MMFAR               RME_A7M_REG(0xE000ED34)
-#define RME_A7M_SCB_ICSR                RME_A7M_REG(0xE000ED04)
+#define RME_A7M_SCB_ID_PFR0             RME_A7M_REG(0xE000ED40)
+#define RME_A7M_SCB_ID_PFR1             RME_A7M_REG(0xE000ED44)
+#define RME_A7M_SCB_ID_DFR0             RME_A7M_REG(0xE000ED48)
+#define RME_A7M_SCB_ID_AFR0             RME_A7M_REG(0xE000ED4C)
+#define RME_A7M_SCB_ID_MMFR0            RME_A7M_REG(0xE000ED50)
+#define RME_A7M_SCB_ID_MMFR1            RME_A7M_REG(0xE000ED54)
+#define RME_A7M_SCB_ID_MMFR2            RME_A7M_REG(0xE000ED58)
+#define RME_A7M_SCB_ID_MMFR3            RME_A7M_REG(0xE000ED5C)
+#define RME_A7M_SCB_ID_ISAR0            RME_A7M_REG(0xE000ED60)
+#define RME_A7M_SCB_ID_ISAR1            RME_A7M_REG(0xE000ED64)
+#define RME_A7M_SCB_ID_ISAR2            RME_A7M_REG(0xE000ED68)
+#define RME_A7M_SCB_ID_ISAR3            RME_A7M_REG(0xE000ED6C)
+#define RME_A7M_SCB_ID_ISAR4            RME_A7M_REG(0xE000ED70)
+#define RME_A7M_SCB_ID_ISAR5            RME_A7M_REG(0xE000ED74)
+#define RME_A7M_SCB_CLIDR               RME_A7M_REG(0xE000ED78)
+#define RME_A7M_SCB_CTR                 RME_A7M_REG(0xE000ED7C)
 
-#define RME_A7M_ITM_TCR                 RME_A7M_REG(0xE0000E80)
-#define RME_A7M_ITM_TCR_ITMENA          (1U<<0)
+#define RME_A7M_SCB_CCSIDR              RME_A7M_REG(0xE000ED80)
+#define RME_A7M_SCB_CCSIDR_WAYS(X)      (((X)&0x1FF8)>>3)
+#define RME_A7M_SCB_CCSIDR_SETS(X)      (((X)&0x0FFFE000)>>13)
 
-#define RME_A7M_ITM_TER                 RME_A7M_REG(0xE0000E00)
-#define RME_A7M_ITM_PORT(X)             RME_A7M_REG(0xE0000000+((X)<<2))
+#define RME_A7M_SCB_CSSELR              RME_A7M_REG(0xE000ED84)
+#define RME_A7M_SCB_CPACR               RME_A7M_REG(0xE000ED88)
+#define RME_A7M_MPU_TYPE                RME_A7M_REG(0xE000ED90)
 
 #define RME_A7M_MPU_CTRL                RME_A7M_REG(0xE000ED94)
 #define RME_A7M_MPU_CTRL_PRIVDEF        (1U<<2)
 #define RME_A7M_MPU_CTRL_ENABLE         (1U<<0)
 
-#define RME_A7M_SCB_AIRCR               RME_A7M_REG(0xE000ED9C)
-#define RME_A7M_NVIC_GROUPING_P7S1      0
-#define RME_A7M_NVIC_GROUPING_P6S2      1
-#define RME_A7M_NVIC_GROUPING_P5S3      2
-#define RME_A7M_NVIC_GROUPING_P4S4      3
-#define RME_A7M_NVIC_GROUPING_P3S5      4
-#define RME_A7M_NVIC_GROUPING_P2S6      5
-#define RME_A7M_NVIC_GROUPING_P1S7      6
-#define RME_A7M_NVIC_GROUPING_P0S8      7
+#define RME_A7M_SCNSCB_STIR             RME_A7M_REG(0xE000EF00)
 
-#define RME_A7M_SCB_SHPR(X)             RME_A7M_REGB(0xE000ED18+(X))
-#define RME_A7M_NVIC_IP(X)              RME_A7M_REGB(0xE000E400+(X))
-#define RME_A7M_NVIC_ISE(X)             RME_A7M_REG(0xE000E100+(X)*4)
-#define RME_A7M_NVIC_ICE(X)             RME_A7M_REG(0XE000E180+(X)*4)
+#define RME_A7M_SCNSCB_MVFR0            RME_A7M_REG(0xE000EF40)
+#define RME_A7M_SCNSCB_MVFR1            RME_A7M_REG(0xE000EF44)
+#define RME_A7M_SCNSCB_MVFR2            RME_A7M_REG(0xE000EF48)
 
-#define RME_A7M_IRQN_NONMASKABLEINT     -14
-#define RME_A7M_IRQN_MEMORYMANAGEMENT   -12
-#define RME_A7M_IRQN_BUSFAULT           -11
-#define RME_A7M_IRQN_USAGEFAULT         -10
-#define RME_A7M_IRQN_SVCALL             -5
-#define RME_A7M_IRQN_DEBUGMONITOR       -4
-#define RME_A7M_IRQN_PENDSV             -2
-#define RME_A7M_IRQN_SYSTICK            -1
+#define RME_A7M_SCNSCB_ICALLU           RME_A7M_REG(0xE000EF50)
+#define RME_A7M_SCNSCB_ICIMVAU          RME_A7M_REG(0xE000EF58)
+#define RME_A7M_SCNSCB_DCIMVAC          RME_A7M_REG(0xE000EF5C)
+#define RME_A7M_SCNSCB_DCISW            RME_A7M_REG(0xE000EF60)
+#define RME_A7M_SCNSCB_DCCMVAC          RME_A7M_REG(0xE000EF68)
+#define RME_A7M_SCNSCB_DCCSW            RME_A7M_REG(0xE000EF6C)
+#define RME_A7M_SCNSCB_DCCIMVAC         RME_A7M_REG(0xE000EF70)
+#define RME_A7M_SCNSCB_DCCISW           RME_A7M_REG(0xE000EF74)
+#define RME_A7M_SCNSCB_BPIALL           RME_A7M_REG(0xE000EF78)
 
-#define RME_A7M_SYSTICK_CTRL            RME_A7M_REG(0xE000E010)
-#define RME_A7M_SYSTICK_LOAD            RME_A7M_REG(0xE000E014)
-#define RME_A7M_SYSTICK_VALREG          RME_A7M_REG(0xE000E018)
-#define RME_A7M_SYSTICK_CALIB           RME_A7M_REG(0xE000E01C)
+#define RME_A7M_SCNSCB_DC(SET,WAY)      (((SET)<<5)|((WAY)<<30))
 
-#define RME_A7M_SYSTICK_CTRL_CLKSOURCE  (1U<<2)
-#define RME_A7M_SYSTICK_CTRL_TICKINT    (1U<<1)
-#define RME_A7M_SYSTICK_CTRL_ENABLE     (1U<<0)
+#define RME_A7M_SCNSCB_PID4             RME_A7M_REG(0xE000EFD0)
+#define RME_A7M_SCNSCB_PID5             RME_A7M_REG(0xE000EFD4)
+#define RME_A7M_SCNSCB_PID6             RME_A7M_REG(0xE000EFD8)
+#define RME_A7M_SCNSCB_PID7             RME_A7M_REG(0xE000EFDC)
+#define RME_A7M_SCNSCB_PID0             RME_A7M_REG(0xE000EFE0)
+#define RME_A7M_SCNSCB_PID1             RME_A7M_REG(0xE000EFE4)
+#define RME_A7M_SCNSCB_PID2             RME_A7M_REG(0xE000EFE8)
+#define RME_A7M_SCNSCB_PID3             RME_A7M_REG(0xE000EFEC)
+#define RME_A7M_SCNSCB_CID0             RME_A7M_REG(0xE000EFF0)
+#define RME_A7M_SCNSCB_CID1             RME_A7M_REG(0xE000EFF4)
+#define RME_A7M_SCNSCB_CID2             RME_A7M_REG(0xE000EFF8)
+#define RME_A7M_SCNSCB_CID3             RME_A7M_REG(0xE000EFFC)
 
 /* Generic *******************************************************************/
 /* ARMv7-M EXC_RETURN bits */
@@ -283,11 +345,8 @@ typedef rme_s32_t rme_ret_t;
 #define RME_BOOT_INIT_TIMER             6
 /* The initial default endpoint for all other vectors */
 #define RME_BOOT_INIT_VECT              7
-
 /* Booting capability layout */
 #define RME_A7M_CPT                     ((struct RME_Cap_Captbl*)(RME_KMEM_VA_START))
-/* SRAM base */
-#define RME_A7M_SRAM_BASE               0x20000000
 
 /* Page Table ****************************************************************/
 /* For ARMv7-M:
@@ -350,60 +409,153 @@ typedef rme_s32_t rme_ret_t;
 #define RME_A7M_MAX_EVTS                (1024)
 
 /* Platform-specific kernel function macros **********************************/
+/* Page table entry mode which property to get */
+#define RME_A7M_KERN_PGTBL_ENTRY_MOD_GET_FLAGS      (0)
+#define RME_A7M_KERN_PGTBL_ENTRY_MOD_GET_SIZEORDER  (1)
+#define RME_A7M_KERN_PGTBL_ENTRY_MOD_GET_NUMORDER   (2)
+/* Interrupt source configuration */
+#define RME_A7M_KERN_INT_LOCAL_MOD_GET_STATE        (0)
+#define RME_A7M_KERN_INT_LOCAL_MOD_SET_STATE        (1)
+#define RME_A7M_KERN_INT_LOCAL_MOD_GET_PRIO         (2)
+#define RME_A7M_KERN_INT_LOCAL_MOD_SET_PRIO         (3)
+/* Cache identifier */
+#define RME_A7M_KERN_CACHE_ICACHE                   (0)
+#define RME_A7M_KERN_CACHE_DCACHE                   (1)
+#define RME_A7M_KERN_CACHE_BTAC                     (2)
+/* Cache modification */
+#define RME_A7M_KERN_CACHE_MOD_GET_STATE            (0)
+#define RME_A7M_KERN_CACHE_MOD_SET_STATE            (1)
+/* Cache state */
+#define RME_A7M_KERN_CACHE_STATE_DISABLE            (0)
+#define RME_A7M_KERN_CACHE_STATE_ENABLE             (1)
+/* Cache maintenance */
+#define RME_A7M_KERN_CACHE_CLEAN_ALL                (0)
+#define RME_A7M_KERN_CACHE_CLEAN_ADDR               (1)
+#define RME_A7M_KERN_CACHE_CLEAN_SET                (2)
+#define RME_A7M_KERN_CACHE_CLEAN_WAY                (3)
+#define RME_A7M_KERN_CACHE_CLEAN_SETWAY             (4)
+#define RME_A7M_KERN_CACHE_INV_ALL                  (5)
+#define RME_A7M_KERN_CACHE_INV_ADDR                 (6)
+#define RME_A7M_KERN_CACHE_INV_SET                  (7)
+#define RME_A7M_KERN_CACHE_INV_WAY                  (8)
+#define RME_A7M_KERN_CACHE_INV_SETWAY               (9)
+#define RME_A7M_KERN_CACHE_CLEAN_INV_ALL            (10)
+#define RME_A7M_KERN_CACHE_CLEAN_INV_ADDR           (11)
+#define RME_A7M_KERN_CACHE_CLEAN_INV_SET            (12)
+#define RME_A7M_KERN_CACHE_CLEAN_INV_WAY            (13)
+#define RME_A7M_KERN_CACHE_CLEAN_INV_SETWAY         (14)
+/* Prefetcher modification */
+#define RME_A7M_KERN_PRFTH_MOD_GET_STATE            (0)
+#define RME_A7M_KERN_PRFTH_MOD_SET_STATE            (1)
+/* Prefetcher state */
+#define RME_A7M_KERN_PRFTH_STATE_DISABLE            (0)
+#define RME_A7M_KERN_PRFTH_STATE_ENABLE             (1)
+/* CPU feature support */
+#define RME_A7M_KERN_CPU_FUNC_CPUID                 (0)
+#define RME_A7M_KERN_CPU_FUNC_ID_PFR0               (1)
+#define RME_A7M_KERN_CPU_FUNC_ID_PFR1               (2)
+#define RME_A7M_KERN_CPU_FUNC_ID_DFR0               (3)
+#define RME_A7M_KERN_CPU_FUNC_ID_AFR0               (4)
+#define RME_A7M_KERN_CPU_FUNC_ID_MMFR0              (5)
+#define RME_A7M_KERN_CPU_FUNC_ID_MMFR1              (6)
+#define RME_A7M_KERN_CPU_FUNC_ID_MMFR2              (7)
+#define RME_A7M_KERN_CPU_FUNC_ID_MMFR3              (8)
+#define RME_A7M_KERN_CPU_FUNC_ID_ISAR0              (9)
+#define RME_A7M_KERN_CPU_FUNC_ID_ISAR1              (10)
+#define RME_A7M_KERN_CPU_FUNC_ID_ISAR2              (11)
+#define RME_A7M_KERN_CPU_FUNC_ID_ISAR3              (12)
+#define RME_A7M_KERN_CPU_FUNC_ID_ISAR4              (13)
+#define RME_A7M_KERN_CPU_FUNC_ID_ISAR5              (14)
+#define RME_A7M_KERN_CPU_FUNC_CLIDR                 (15)
+#define RME_A7M_KERN_CPU_FUNC_CTR                   (16)
+#define RME_A7M_KERN_CPU_FUNC_ICACHE_CCSIDR         (17)
+#define RME_A7M_KERN_CPU_FUNC_DCACHE_CCSIDR         (18)
+#define RME_A7M_KERN_CPU_FUNC_MPU_TYPE              (19)
+#define RME_A7M_KERN_CPU_FUNC_MVFR0                 (20)
+#define RME_A7M_KERN_CPU_FUNC_MVFR1                 (21)
+#define RME_A7M_KERN_CPU_FUNC_MVFR2                 (22)
+#define RME_A7M_KERN_CPU_FUNC_PID0                  (23)
+#define RME_A7M_KERN_CPU_FUNC_PID1                  (24)
+#define RME_A7M_KERN_CPU_FUNC_PID2                  (25)
+#define RME_A7M_KERN_CPU_FUNC_PID3                  (26)
+#define RME_A7M_KERN_CPU_FUNC_PID4                  (27)
+#define RME_A7M_KERN_CPU_FUNC_PID5                  (28)
+#define RME_A7M_KERN_CPU_FUNC_PID6                  (29)
+#define RME_A7M_KERN_CPU_FUNC_PID7                  (30)
+#define RME_A7M_KERN_CPU_FUNC_CID0                  (31)
+#define RME_A7M_KERN_CPU_FUNC_CID1                  (32)
+#define RME_A7M_KERN_CPU_FUNC_CID2                  (33)
+#define RME_A7M_KERN_CPU_FUNC_CID3                  (34)
+/* Perfomance counters */
+#define RME_A7M_KERN_PERF_CYCLE_CYCCNT              (0)
+/* Performance counter state operations */
+#define RME_A7M_KERN_PERF_STATE_GET                 (0)
+#define RME_A7M_KERN_PERF_STATE_SET                 (1)
+/* Performance counter states */
+#define RME_A7M_KERN_PERF_STATE_DISABLE             (0)
+#define RME_A7M_KERN_PERF_STATE_ENABLE              (1)
+/* Performance counter value operations */
+#define RME_A7M_KERN_PERF_VAL_GET                   (0)
+#define RME_A7M_KERN_PERF_VAL_SET                   (1)
 /* Register read/write */
-#define RME_KERN_DEBUG_REG_MOD_SP_READ          (0)
-#define RME_KERN_DEBUG_REG_MOD_SP_WRITE         (1)
-#define RME_KERN_DEBUG_REG_MOD_R4_READ          (2)
-#define RME_KERN_DEBUG_REG_MOD_R4_WRITE         (3)
-#define RME_KERN_DEBUG_REG_MOD_R5_READ          (4)
-#define RME_KERN_DEBUG_REG_MOD_R5_WRITE         (5)
-#define RME_KERN_DEBUG_REG_MOD_R6_READ          (6)
-#define RME_KERN_DEBUG_REG_MOD_R6_WRITE         (7)
-#define RME_KERN_DEBUG_REG_MOD_R7_READ          (8)
-#define RME_KERN_DEBUG_REG_MOD_R7_WRITE         (9)
-#define RME_KERN_DEBUG_REG_MOD_R8_READ          (10)
-#define RME_KERN_DEBUG_REG_MOD_R8_WRITE         (11)
-#define RME_KERN_DEBUG_REG_MOD_R9_READ          (12)
-#define RME_KERN_DEBUG_REG_MOD_R9_WRITE         (13)
-#define RME_KERN_DEBUG_REG_MOD_R10_READ         (14)
-#define RME_KERN_DEBUG_REG_MOD_R10_WRITE        (15)
-#define RME_KERN_DEBUG_REG_MOD_R11_READ         (16)
-#define RME_KERN_DEBUG_REG_MOD_R11_WRITE        (17)
-#define RME_KERN_DEBUG_REG_MOD_LR_READ          (18)
-#define RME_KERN_DEBUG_REG_MOD_LR_WRITE         (19)
+#define RME_A7M_KERN_DEBUG_REG_MOD_SP_GET           (0)
+#define RME_A7M_KERN_DEBUG_REG_MOD_SP_SET           (1)
+#define RME_A7M_KERN_DEBUG_REG_MOD_R4_GET           (2)
+#define RME_A7M_KERN_DEBUG_REG_MOD_R4_SET           (3)
+#define RME_A7M_KERN_DEBUG_REG_MOD_R5_GET           (4)
+#define RME_A7M_KERN_DEBUG_REG_MOD_R5_SET           (5)
+#define RME_A7M_KERN_DEBUG_REG_MOD_R6_GET           (6)
+#define RME_A7M_KERN_DEBUG_REG_MOD_R6_SET           (7)
+#define RME_A7M_KERN_DEBUG_REG_MOD_R7_GET           (8)
+#define RME_A7M_KERN_DEBUG_REG_MOD_R7_SET           (9)
+#define RME_A7M_KERN_DEBUG_REG_MOD_R8_GET           (10)
+#define RME_A7M_KERN_DEBUG_REG_MOD_R8_SET           (11)
+#define RME_A7M_KERN_DEBUG_REG_MOD_R9_GET           (12)
+#define RME_A7M_KERN_DEBUG_REG_MOD_R9_SET           (13)
+#define RME_A7M_KERN_DEBUG_REG_MOD_R10_GET          (14)
+#define RME_A7M_KERN_DEBUG_REG_MOD_R10_SET          (15)
+#define RME_A7M_KERN_DEBUG_REG_MOD_R11_GET          (16)
+#define RME_A7M_KERN_DEBUG_REG_MOD_R11_SET          (17)
+#define RME_A7M_KERN_DEBUG_REG_MOD_LR_GET           (18)
+#define RME_A7M_KERN_DEBUG_REG_MOD_LR_SET           (19)
 /* FPU register read/write */
-#define RME_KERN_DEBUG_REG_MOD_S16_READ         (20)
-#define RME_KERN_DEBUG_REG_MOD_S16_WRITE        (21)
-#define RME_KERN_DEBUG_REG_MOD_S17_READ         (22)
-#define RME_KERN_DEBUG_REG_MOD_S17_WRITE        (23)
-#define RME_KERN_DEBUG_REG_MOD_S18_READ         (24)
-#define RME_KERN_DEBUG_REG_MOD_S18_WRITE        (25)
-#define RME_KERN_DEBUG_REG_MOD_S19_READ         (26)
-#define RME_KERN_DEBUG_REG_MOD_S19_WRITE        (27)
-#define RME_KERN_DEBUG_REG_MOD_S20_READ         (28)
-#define RME_KERN_DEBUG_REG_MOD_S20_WRITE        (29)
-#define RME_KERN_DEBUG_REG_MOD_S21_READ         (30)
-#define RME_KERN_DEBUG_REG_MOD_S21_WRITE        (31)
-#define RME_KERN_DEBUG_REG_MOD_S22_READ         (32)
-#define RME_KERN_DEBUG_REG_MOD_S22_WRITE        (33)
-#define RME_KERN_DEBUG_REG_MOD_S23_READ         (34)
-#define RME_KERN_DEBUG_REG_MOD_S23_WRITE        (35)
-#define RME_KERN_DEBUG_REG_MOD_S24_READ         (36)
-#define RME_KERN_DEBUG_REG_MOD_S24_WRITE        (37)
-#define RME_KERN_DEBUG_REG_MOD_S25_READ         (38)
-#define RME_KERN_DEBUG_REG_MOD_S25_WRITE        (39)
-#define RME_KERN_DEBUG_REG_MOD_S26_READ         (40)
-#define RME_KERN_DEBUG_REG_MOD_S26_WRITE        (41)
-#define RME_KERN_DEBUG_REG_MOD_S27_READ         (42)
-#define RME_KERN_DEBUG_REG_MOD_S27_WRITE        (43)
-#define RME_KERN_DEBUG_REG_MOD_S28_READ         (44)
-#define RME_KERN_DEBUG_REG_MOD_S28_WRITE        (45)
-#define RME_KERN_DEBUG_REG_MOD_S29_READ         (46)
-#define RME_KERN_DEBUG_REG_MOD_S29_WRITE        (47)
-#define RME_KERN_DEBUG_REG_MOD_S30_READ         (48)
-#define RME_KERN_DEBUG_REG_MOD_S30_WRITE        (49)
-#define RME_KERN_DEBUG_REG_MOD_S31_READ         (50)
-#define RME_KERN_DEBUG_REG_MOD_S31_WRITE        (51)
+#define RME_A7M_KERN_DEBUG_REG_MOD_S16_GET          (20)
+#define RME_A7M_KERN_DEBUG_REG_MOD_S16_SET          (21)
+#define RME_A7M_KERN_DEBUG_REG_MOD_S17_GET          (22)
+#define RME_A7M_KERN_DEBUG_REG_MOD_S17_SET          (23)
+#define RME_A7M_KERN_DEBUG_REG_MOD_S18_GET          (24)
+#define RME_A7M_KERN_DEBUG_REG_MOD_S18_SET          (25)
+#define RME_A7M_KERN_DEBUG_REG_MOD_S19_GET          (26)
+#define RME_A7M_KERN_DEBUG_REG_MOD_S19_SET          (27)
+#define RME_A7M_KERN_DEBUG_REG_MOD_S20_GET          (28)
+#define RME_A7M_KERN_DEBUG_REG_MOD_S20_SET          (29)
+#define RME_A7M_KERN_DEBUG_REG_MOD_S21_GET          (30)
+#define RME_A7M_KERN_DEBUG_REG_MOD_S21_SET          (31)
+#define RME_A7M_KERN_DEBUG_REG_MOD_S22_GET          (32)
+#define RME_A7M_KERN_DEBUG_REG_MOD_S22_SET          (33)
+#define RME_A7M_KERN_DEBUG_REG_MOD_S23_GET          (34)
+#define RME_A7M_KERN_DEBUG_REG_MOD_S23_SET          (35)
+#define RME_A7M_KERN_DEBUG_REG_MOD_S24_GET          (36)
+#define RME_A7M_KERN_DEBUG_REG_MOD_S24_SET          (37)
+#define RME_A7M_KERN_DEBUG_REG_MOD_S25_GET          (38)
+#define RME_A7M_KERN_DEBUG_REG_MOD_S25_SET          (39)
+#define RME_A7M_KERN_DEBUG_REG_MOD_S26_GET          (40)
+#define RME_A7M_KERN_DEBUG_REG_MOD_S26_SET          (41)
+#define RME_A7M_KERN_DEBUG_REG_MOD_S27_GET          (42)
+#define RME_A7M_KERN_DEBUG_REG_MOD_S27_SET          (43)
+#define RME_A7M_KERN_DEBUG_REG_MOD_S28_GET          (44)
+#define RME_A7M_KERN_DEBUG_REG_MOD_S28_SET          (45)
+#define RME_A7M_KERN_DEBUG_REG_MOD_S29_GET          (46)
+#define RME_A7M_KERN_DEBUG_REG_MOD_S29_SET          (47)
+#define RME_A7M_KERN_DEBUG_REG_MOD_S30_GET          (48)
+#define RME_A7M_KERN_DEBUG_REG_MOD_S30_SET          (49)
+#define RME_A7M_KERN_DEBUG_REG_MOD_S31_GET          (50)
+#define RME_A7M_KERN_DEBUG_REG_MOD_S31_SET          (51)
+/* Invocation register read/write */
+#define RME_A7M_KERN_DEBUG_INV_MOD_SP_GET           (0)
+#define RME_A7M_KERN_DEBUG_INV_MOD_SP_SET           (1)
+#define RME_A7M_KERN_DEBUG_INV_MOD_LR_GET           (2)
+#define RME_A7M_KERN_DEBUG_INV_MOD_LR_SET           (3)
 /*****************************************************************************/
 /* __RME_PLATFORM_A7M_H_DEFS__ */
 #endif
@@ -555,6 +707,23 @@ static rme_ptr_t ___RME_Pgtbl_MPU_Add(struct __RME_A7M_MPU_Data* Top_MPU,
                                       rme_ptr_t Base_Addr, rme_ptr_t Size_Order, rme_ptr_t Num_Order,
                                       rme_ptr_t MPU_RASR, rme_ptr_t Static);
 static rme_ptr_t ___RME_Pgtbl_MPU_Update(struct __RME_A7M_Pgtbl_Meta* Meta, rme_ptr_t Op_Flag);
+/* Kernel function ***********************************************************/
+static rme_ret_t __RME_A7M_Pgtbl_Entry_Mod(struct RME_Cap_Captbl* Captbl, 
+                                               rme_cid_t Cap_Pgtbl, rme_ptr_t Vaddr, rme_ptr_t Type);
+static rme_ret_t __RME_A7M_Int_Local_Mod(rme_ptr_t Int_Num, rme_ptr_t Operation, rme_ptr_t Param);
+static rme_ret_t __RME_A7M_Int_Local_Trig(rme_ptr_t CPUID, rme_ptr_t Int_Num);
+static rme_ret_t __RME_A7M_Evt_Local_Trig(struct RME_Reg_Struct* Reg, rme_ptr_t CPUID, rme_ptr_t Evt_Num);
+static rme_ret_t __RME_A7M_Cache_Mod(rme_ptr_t Cache_ID, rme_ptr_t Operation, rme_ptr_t Param);
+static rme_ret_t __RME_A7M_Cache_Maint(rme_ptr_t Cache_ID, rme_ptr_t Operation, rme_ptr_t Param);
+static rme_ret_t __RME_A7M_Prfth_Mod(rme_ptr_t Prfth_ID, rme_ptr_t Operation, rme_ptr_t Param);
+static rme_ret_t __RME_A7M_Perf_CPU_Func(struct RME_Reg_Struct* Reg, rme_ptr_t Freg_ID);
+static rme_ret_t __RME_A7M_Perf_Mon_Mod(rme_ptr_t Perf_ID, rme_ptr_t Operation, rme_ptr_t Param);
+static rme_ret_t __RME_A7M_Perf_Cycle_Mod(struct RME_Reg_Struct* Reg, rme_ptr_t Cycle_ID, 
+                                          rme_ptr_t Operation, rme_ptr_t Value);
+static rme_ret_t __RME_A7M_Debug_Reg_Mod(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg, 
+                                         rme_cid_t Cap_Thd, rme_ptr_t Operation, rme_ptr_t Value);
+static rme_ret_t __RME_A7M_Debug_Inv_Mod(struct RME_Cap_Captbl* Captbl, struct RME_Reg_Struct* Reg, 
+                                         rme_cid_t Cap_Thd, rme_ptr_t Operation, rme_ptr_t Value);
 /*****************************************************************************/
 #define __EXTERN__
 /* End Private C Function Prototypes *****************************************/
@@ -586,11 +755,6 @@ EXTERN rme_ptr_t __RME_A7M_MSB_Get(rme_ptr_t Val);
 __EXTERN__ rme_ptr_t __RME_A7M_Comp_Swap(rme_ptr_t* Ptr, rme_ptr_t Old, rme_ptr_t New);
 __EXTERN__ rme_ptr_t __RME_A7M_Fetch_Add(rme_ptr_t* Ptr, rme_cnt_t Addend);
 __EXTERN__ rme_ptr_t __RME_A7M_Fetch_And(rme_ptr_t* Ptr, rme_ptr_t Operand);
-__EXTERN__ void __RME_A7M_Enable_Cache(void);
-__EXTERN__ void __RME_A7M_ITM_Putchar(char Char);
-__EXTERN__ void __RME_A7M_NVIC_Enable_IRQ(rme_ptr_t IRQ);
-__EXTERN__ void __RME_A7M_NVIC_Disable_IRQ(rme_ptr_t IRQ);
-__EXTERN__ void __RME_A7M_NVIC_Set_Prio(rme_ret_t IRQ, rme_ptr_t Prio);
 /* Debugging */
 __EXTERN__ rme_ptr_t __RME_Putchar(char Char);
 /* Getting CPUID */
@@ -610,6 +774,10 @@ EXTERN void _RME_Kmain(rme_ptr_t Stack);
 __EXTERN__ void __RME_A7M_Low_Level_Preinit(void);
 __EXTERN__ rme_ptr_t __RME_Low_Level_Init(void);
 __EXTERN__ rme_ptr_t __RME_Boot(void);
+EXTERN void __RME_A7M_Reset(void);
+__EXTERN__ void __RME_A7M_Reboot(void);
+__EXTERN__ void __RME_A7M_NVIC_Set_Exc_Prio(rme_cnt_t Exc, rme_ptr_t Prio);
+__EXTERN__ void __RME_A7M_Cache_Init(void);
 EXTERN void __RME_Enter_User_Mode(rme_ptr_t Entry_Addr, rme_ptr_t Stack_Addr, rme_ptr_t CPUID);
 
 /* Register Manipulation *****************************************************/

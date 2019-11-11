@@ -108,6 +108,7 @@ do \
         RME_PRINTK_S((rme_s8_t*)" , "); \
         RME_PRINTK_S((rme_s8_t*)__TIME__); \
         RME_PRINTK_S((rme_s8_t*)"\r\n"); \
+        RME_ASSERT_FAILED(__FILE__, __LINE__, __DATE__, __TIME__); \
         while(1); \
     } \
 } \
