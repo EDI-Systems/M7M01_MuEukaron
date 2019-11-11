@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<Display>
+    <Platform>
+        <Name>ARMv7-M架构</Name>
+        <Help>一种适用于单片机类小型嵌入式系统的32位架构。</Help>
+        <Logo>A7M.png</Logo>
+    </Platform>
+
+    <Manufacturer>
+        <ST_Micro_Electronics>
+            <Name>意法半导体</Name>
+            <Help>广受欢迎的STM32单片机的生产商。也生产其他传感器、存储器、驱动器等半导体产品。</Help>
+            <Logo>STMicro.png</Logo>
+            <Family>
+                <STM32F7>
+                    <Name>STM32F7系列</Name>
+                    <Help>基于ARMv7-M Cortex-M7的中档单片机。</Help>
+                    <Logo>STM32F7.png</Logo>
+                    <Device>
+                        <STM32F767IGT6>
+                            <Class>STM32F767IG</Class>
+                            <Help>具备400MHz主频、512kB SRAM和1MB Flash。</Help>
+                            <Logo>STM32F7.png</Logo>
+                        </STM32F767IGT6>
+                    </Device>
+                </STM32F7>
+            </Family>
+        </ST_Micro_Electronics>
+    </Manufacturer>
+
+    <Tag>
+        <A7M_NVIC_GROUPING>
+            <Name>NVIC优先级分组选择</Name>
+            <Help>选择NVIC的优先级分组。显示在前面的是抢占优先级数量，显示在后面的是非抢占优先级数量。</Help>
+        </A7M_NVIC_GROUPING>
+        <A7M_SYSTICK_VALUE>
+            <Name>Systick计数器装载值</Name>
+            <Help>Systick计数器会从此倒数，产生系统时基。有效范围是0x100到0xFFFFFF。</Help>
+        </A7M_SYSTICK_VALUE>
+
+        <A7M_GUEST_RMP>
+            <Name>RMP操作系统</Name>
+            <Help>RME原生支持虚拟化的操作系统。</Help>
+        </A7M_GUEST_RMP>
+
+        <A7M_IDE_KEIL>
+            <Name>Keil uVision集成开发环境</Name>
+            <Help>由ARM提供的Cortex-M的原生集成开发环境。</Help>
+        </A7M_IDE_KEIL>
+        <A7M_IDE_ECLIPSE>
+            <Name>Eclipse集成开发环境</Name>
+            <Help>老牌多用途集成开发环境，基于Java开发。</Help>
+        </A7M_IDE_ECLIPSE>
+        <A7M_IDE_MAKEFILE>
+            <Name>Makefile工程</Name>
+            <Help>典型的Makefile工程，无集成开发环境。</Help>
+        </A7M_IDE_MAKEFILE>
+
+        <STM32F4_XTAL>
+            <Name>外部晶体振荡器频率</Name>
+            <Help>外部晶体振荡器的频率（MHz）。有效范围是4到26。</Help>
+        </STM32F4_XTAL>
+        <STM32F4_PLLM>
+            <Name>PLLM装载值</Name>
+            <Help>PLLM负责将外部晶振的频率除以该值，送入PLL。有效范围是2到63。最终的CPU频率为：晶振频率/PLLM*PLLN/PLLP。</Help>
+        </STM32F4_PLLM>
+        <STM32F4_PLLN>
+            <Name>PLLN装载值</Name>
+            <Help>PLLN负责对分频后的频率倍频。有效范围是50到432。最终的CPU频率为：晶振频率/PLLM*PLLN/PLLP。</Help>
+        </STM32F4_PLLN>
+        <STM32F4_PLLP>
+            <Name>PLLP装载值</Name>
+            <Help>PLLP负责对倍频后的频率再分频，并送入CPU。可以选择2，4，6或8。最终的CPU频率为：晶振频率/PLLM*PLLN/PLLP。</Help>
+        </STM32F4_PLLP>
+        <STM32F4_PLLQ>
+            <Name>PLLQ装载值</Name>
+            <Help>PLLQ负责对倍频后的频率再分频，并送入USB和RNG。有效范围是2到15。最终的CPU频率为：晶振频率/PLLM*PLLN/PLLQ，只有当它等于48MHz时USB和RNG才正常运行。</Help>
+        </STM32F4_PLLQ>
+
+        <STM32F7_XTAL>
+            <Name>外部晶体振荡器频率</Name>
+            <Help>外部晶体振荡器的频率（MHz）。有效范围是4到26。</Help>
+        </STM32F7_XTAL>
+        <STM32F7_PLLM>
+            <Name>PLLM装载值</Name>
+            <Help>PLLM负责将外部晶振的频率除以该值，送入PLL。有效范围是2到63。最终的CPU频率为：晶振频率/PLLM*PLLN/PLLP。</Help>
+        </STM32F7_PLLM>
+        <STM32F7_PLLN>
+            <Name>PLLN装载值</Name>
+            <Help>PLLN负责对分频后的频率倍频。有效范围是50到432。最终的CPU频率为：晶振频率/PLLM*PLLN/PLLP。</Help>
+        </STM32F7_PLLN>
+        <STM32F7_PLLP>
+            <Name>PLLP装载值</Name>
+            <Help>PLLP负责对倍频后的频率再分频，并送入CPU。可以选择2，4，6或8。最终的CPU频率为：晶振频率/PLLM*PLLN/PLLP。</Help>
+        </STM32F7_PLLP>
+        <STM32F7_PLLQ>
+            <Name>PLLQ装载值</Name>
+            <Help>PLLQ负责对倍频后的频率再分频，并送入USB和RNG。有效范围是2到15。最终的CPU频率为：晶振频率/PLLM*PLLN/PLLQ，只有当它等于48MHz时USB和RNG才正常运行。</Help>
+        </STM32F7_PLLQ>
+    </Tag>
+</Display>

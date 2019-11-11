@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<Platform>
+    <Name>A7M</Name>
+    <Option>
+        <O0>
+            <Name>NVIC_Grouping</Name>
+            <Display>#A7M_NVIC_GROUPING</Display>
+            <Type>Select</Type>
+            <Range>0-8,1-7,2-6,3-5,4-4,5-3,6-2,7-1</Range>
+        </O0>
+        <O1>
+            <Name>Systick_Value</Name>
+            <Display>#A7M_SYSTICK_VALUE</Display>
+            <Type>Range</Type>
+            <Range>100,16777215</Range>
+        </O1>
+    </Option>
+    <Guest>
+        <G0>
+            <Name>RMP</Name>
+            <Display>#A7M_GUEST_RMP</Display>
+        </G0>
+    </Guest>
+    <Project>
+        <P0>
+            <Name>keil</Name>
+            <Display>#A7M_IDE_KEIL</Display>
+        </P0>
+        <P1>
+            <Name>eclipse</Name>
+            <Display>#A7M_IDE_ECLIPSE</Display>
+        </P1>
+        <P2>
+            <Name>makefile</Name>
+            <Display>#A7M_IDE_MAKEFILE</Display>
+        </P2>
+    </Project>
+</Platform>
