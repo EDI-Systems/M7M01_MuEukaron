@@ -124,7 +124,7 @@ rme_ptr_t __RME_A7M_Fetch_And(rme_ptr_t* Ptr, rme_ptr_t Operand)
 
 /* Begin Function:__RME_Putchar ***********************************************
 Description : Output a character to console. In Cortex-M, under most circumstances, 
-              we should use the ITM for such outputs.
+              we should use the ITM or serial for such outputs.
 Input       : char Char - The character to print.
 Output      : None.
 Return      : rme_ptr_t - Always 0.
